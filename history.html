@@ -3,38 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>试衣历史 · AI穿搭助手</title>
+<title>试衣间 · AI穿搭助手</title>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/base.css">
 <style>
-  .hist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 16px 24px 26px; }
+  .hist-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 16px var(--pad) 26px; }
   .hcard {
     position: relative;
-    border-radius: var(--r-lg); overflow: hidden;
+    border-radius: var(--r-md); overflow: hidden;
     box-shadow: var(--shadow-card);
     cursor: pointer;
+    aspect-ratio: .75;
     background: var(--card);
   }
-  .hcard:nth-child(odd) { aspect-ratio: .78; }
-  .hcard:nth-child(even) { aspect-ratio: .92; }
   .hcard .bg { position: absolute; inset: 0; }
   .hcard .fit {
     position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center; padding: 18%;
+    display: flex; align-items: center; justify-content: center; padding: 16%;
   }
   .hcard .fit img { max-width: 100%; max-height: 100%; }
-  .hcard .meta {
-    position: absolute; left: 10px; bottom: 10px; right: 10px;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .hcard .tag {
-    background: rgba(255,255,255,.88); backdrop-filter: blur(4px);
-    padding: 5px 11px; border-radius: 999px;
-    font-size: 11.5px; font-weight: 700;
-  }
-  .hcard .date { font-size: 11px; color: rgba(16,16,18,.55); font-weight: 600; background: rgba(255,255,255,.7); padding: 4px 8px; border-radius: 999px; }
   .hcard .ck {
-    position: absolute; top: 10px; right: 10px;
+    position: absolute; top: 8px; right: 8px;
     width: 22px; height: 22px; border-radius: 50%;
     background: rgba(255,255,255,.92); border: 1.5px solid #d0d0cd;
     display: none; place-content: center; font-size: 12px; font-weight: 900; color: #fff;
@@ -45,16 +34,56 @@
 
   .edit-pill {
     border: 1.5px solid var(--line); background: var(--card);
-    color: var(--ink); padding: 9px 18px; border-radius: 999px;
-    font-size: 14px; font-weight: 700; cursor: pointer;
+    color: var(--ink); padding: 10px 18px; min-height: 40px; border-radius: 999px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
   }
   .del-bar {
     position: sticky; bottom: calc(var(--nav-h) + 12px); z-index: 20;
-    margin: 0 24px;
+    margin: 0 var(--pad);
     display: none;
   }
   .editing-bar .del-bar { display: block; }
-  .empty { text-align: center; color: var(--muted); padding: 90px 40px; font-size: 14.5px; line-height: 2; }
+  .empty { text-align: center; color: var(--muted); padding: 90px 40px; font-size: 15px; line-height: 2; }
+
+  /* ---- iOS 图库式查看器 ---- */
+  .viewer {
+    position: fixed; inset: 0; z-index: 80;
+    background: #0c0c0e;
+    display: none; flex-direction: column;
+  }
+  .viewer.show { display: flex; }
+  .viewer .v-top {
+    display: flex; align-items: center;
+    padding: calc(12px + env(safe-area-inset-top)) var(--pad) 8px;
+  }
+  .viewer .v-top .iconbtn { background: rgba(255,255,255,.14); color: #fff; box-shadow: none; }
+  .viewer .v-main {
+    flex: 1; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px 20px;
+  }
+  .viewer .v-photo {
+    width: 100%; max-width: 340px; aspect-ratio: .75;
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity .18s ease;
+  }
+  .viewer .v-photo img { max-width: 72%; max-height: 88%; }
+  .viewer .v-strip {
+    display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+    padding: 14px var(--pad) calc(24px + env(safe-area-inset-bottom));
+  }
+  .viewer .v-strip::-webkit-scrollbar { display: none; }
+  .vthumb {
+    flex: none; width: 52px; aspect-ratio: .75;
+    border-radius: 10px; overflow: hidden; position: relative;
+    cursor: pointer; opacity: .55;
+    border: 2px solid transparent;
+    transition: all .15s ease;
+  }
+  .vthumb.on { opacity: 1; border-color: #fff; }
+  .vthumb .bg { position: absolute; inset: 0; }
+  .vthumb img { position: absolute; inset: 14%; width: 72%; height: 72%; object-fit: contain; }
 </style>
 </head>
 <body>
@@ -62,20 +91,27 @@
 
   <div class="pagehead" style="padding-top:14px">
     <div>
-      <div class="h-display rise" style="font-size:28px">试衣历史</div>
+      <div class="h-display rise" style="font-size:28px">试衣间</div>
       <div class="section-note rise" id="countNote" style="margin-top:6px"></div>
     </div>
     <span class="grow"></span>
     <button class="edit-pill rise" id="btnEdit">编辑</button>
   </div>
 
-  <div class="chips rise d1" id="sceneChips" style="padding-top:10px"></div>
-
-  <div class="hist-grid rise d2" id="grid"></div>
+  <div class="hist-grid rise d1" id="grid"></div>
 
   <div class="del-bar">
     <button class="btn btn-primary btn-block" id="btnDel" style="background:var(--danger)">删除所选（0）</button>
   </div>
+</div>
+
+<!-- 图库查看器 -->
+<div class="viewer" id="viewer">
+  <div class="v-top">
+    <button class="iconbtn" onclick="closeViewer()">✕</button>
+  </div>
+  <div class="v-main"><div class="v-photo" id="vPhoto"></div></div>
+  <div class="v-strip" id="vStrip"></div>
 </div>
 
 <script src="js/data.js"></script>
@@ -84,7 +120,6 @@
   renderStatusbar();
   renderTabbar("history");
 
-  /* 若无历史记录，填充演示数据 */
   const TINTS = [
     "linear-gradient(150deg,#f6e3d7,#eed7cf)", "linear-gradient(150deg,#e5ddf0,#d8d0ea)",
     "linear-gradient(150deg,#efe9dc,#e7dfd0)", "linear-gradient(150deg,#f2ded2,#ecd4c6)",
@@ -98,21 +133,20 @@
     Store.set({ history: demo });
   }
 
-  let scene = "全部", editing = false;
+  let editing = false;
   const sel = new Set();
+  const tintOf = i => TINTS[i % TINTS.length];
+
+  function list() { return Store.get().history; }
 
   function renderGrid() {
-    const list = Store.get().history.filter(h => scene === "全部" || h.scene === scene);
-    $("#countNote").textContent = `共 ${list.length} 张 · 仅自己可见`;
-    $("#grid").innerHTML = list.length ? list.map((h, i) => `
-      <div class="hcard" data-id="${h.id}">
-        <div class="bg" style="background:${TINTS[i % TINTS.length]}"></div>
+    const l = list();
+    $("#countNote").textContent = `共 ${l.length} 张 · 仅自己可见`;
+    $("#grid").innerHTML = l.length ? l.map((h, i) => `
+      <div class="hcard" data-id="${h.id}" data-i="${i}">
+        <div class="bg" style="background:${tintOf(i)}"></div>
         <div class="fit"><img src="assets/ph/model.svg" alt="试衣照"></div>
         <span class="ck"></span>
-        <div class="meta">
-          <span class="tag">${h.scene}</span>
-          <span class="date">${fmtTime(h.time)}</span>
-        </div>
       </div>`).join("")
       : `<div class="empty" style="grid-column:1/-1">还没有试衣记录<br>去首页挑一套搭配试穿吧</div>`;
 
@@ -123,12 +157,36 @@
         c.classList.toggle("sel", sel.has(id));
         $("#btnDel").textContent = `删除所选（${sel.size}）`;
       } else {
-        const h = Store.get().history.find(x => x.id === id);
-        location.href = h.outfitId ? `outfit-detail.html?id=${h.outfitId}` : "javascript:;";
+        openViewer(+c.dataset.i);
       }
     }));
   }
 
+  /* ---- 查看器 ---- */
+  let vIndex = 0;
+  function openViewer(i) {
+    vIndex = i;
+    renderViewer();
+    $("#viewer").classList.add("show");
+  }
+  function closeViewer() { $("#viewer").classList.remove("show"); }
+  function renderViewer() {
+    const l = list();
+    $("#vPhoto").style.background = tintOf(vIndex);
+    $("#vPhoto").innerHTML = `<img src="assets/ph/model.svg">`;
+    $("#vStrip").innerHTML = l.map((h, i) => `
+      <div class="vthumb ${i === vIndex ? "on" : ""}" data-v="${i}">
+        <div class="bg" style="background:${tintOf(i)}"></div>
+        <img src="assets/ph/model.svg">
+      </div>`).join("");
+    $$("[data-v]").forEach(t => t.addEventListener("click", () => {
+      vIndex = +t.dataset.v;
+      renderViewer();
+    }));
+    $$("#vStrip .vthumb")[vIndex]?.scrollIntoView({ inline: "center", behavior: "smooth" });
+  }
+
+  /* ---- 编辑/删除 ---- */
   $("#btnEdit").addEventListener("click", () => {
     editing = !editing;
     sel.clear();
@@ -138,17 +196,15 @@
     $("#btnDel").textContent = "删除所选（0）";
     renderGrid();
   });
-
   $("#btnDel").addEventListener("click", () => {
     if (!sel.size) { toast("先选择要删除的记录"); return; }
-    Store.set({ history: Store.get().history.filter(h => !sel.has(h.id)) });
+    Store.set({ history: list().filter(h => !sel.has(h.id)) });
     toast(`已删除 ${sel.size} 条记录`);
     sel.clear();
     $("#btnDel").textContent = "删除所选（0）";
     renderGrid();
   });
 
-  renderChips($("#sceneChips"), SCENES, s => { scene = s; renderGrid(); });
   renderGrid();
 </script>
 </body>

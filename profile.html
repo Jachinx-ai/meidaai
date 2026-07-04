@@ -31,18 +31,32 @@
     width: 26px; height: 3.5px; border-radius: 2px; background: var(--ink);
   }
 
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 18px 24px 26px; }
-  .fcard { background: var(--card); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 14px; }
-  .fcard .imgs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; min-height: 110px; align-items: center; }
-  .fcard .imgs img { width: 100%; aspect-ratio: 1; object-fit: contain; }
-  .fcard .nm { font-size: 13.5px; font-weight: 700; margin: 8px 0 10px; }
-  .fcard .acts { display: flex; gap: 8px; }
-  .fcard .acts button {
-    flex: 1; border: none; border-radius: 999px; padding: 9px 0;
-    font-size: 12.5px; font-weight: 700; cursor: pointer;
+  /* 收藏卡片：与首页搭配卡同款 */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 18px var(--pad) 26px; }
+  .ocard {
+    min-width: 0;
+    background: var(--card); border-radius: var(--r-lg);
+    box-shadow: var(--shadow-card);
+    padding: 14px; position: relative; cursor: pointer;
   }
-  .b-star { background: var(--fill); color: var(--ink); }
-  .b-try { background: var(--ink); color: #fff; }
+  .collage { display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px; align-items: center; min-height: 128px; }
+  .collage img { width: 100%; aspect-ratio: 1; object-fit: contain; }
+  .collage .side { display: flex; flex-direction: column; gap: 2px; }
+  .collage .side img { aspect-ratio: 1.1; }
+  .ocard .ofoot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+  .ocard .star {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 1.5px solid var(--ink); background: var(--card);
+    font-size: 15px; cursor: pointer; color: #101012;
+    display: flex; align-items: center; justify-content: center;
+    flex: none;
+  }
+  .try-pill {
+    flex: none; white-space: nowrap;
+    border: none; background: var(--ink); color: #fff;
+    padding: 9px 18px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+  }
 
   /* 我的模特 */
   .model-stage { padding: 18px 24px 8px; }
@@ -126,25 +140,37 @@
     $("#tabModel").classList.toggle("hidden", b.dataset.tab !== "model");
   }));
 
-  /* 我的收藏 */
+  /* 我的收藏：与首页卡片一致，收藏为已选中态 */
   function renderFavs() {
     const favs = Store.get().favorites;
     const list = OUTFITS.filter(o => favs.includes(o.id));
-    $("#favGrid").innerHTML = list.length ? list.map(o => `
-      <div class="fcard">
-        <div class="imgs">${o.items.slice(0, 4).map(id => itemImg(itemById(id))).join("")}</div>
-        <div class="nm">${o.name} · ${o.scene}</div>
-        <div class="acts">
-          <button class="b-star" data-un="${o.id}">★ 已收藏</button>
-          <button class="b-try" onclick="location.href='tryon.html?outfit=${o.id}'">试穿</button>
+    $("#favGrid").innerHTML = list.length ? list.map(o => {
+      const its = o.items.map(itemById).filter(Boolean);
+      return `
+      <div class="ocard" data-id="${o.id}">
+        <div class="collage">
+          ${itemImg(its[0])}
+          <div class="side">${its.slice(1, 3).map(i => itemImg(i)).join("")}</div>
         </div>
-      </div>`).join("")
+        <div class="ofoot">
+          <button class="star" data-un="${o.id}">★</button>
+          <button class="try-pill" data-try="${o.id}">试穿</button>
+        </div>
+      </div>`;
+    }).join("")
       : `<div class="empty">还没有收藏的搭配<br>去首页给喜欢的搭配点 ★ 吧</div>`;
-    $$("[data-un]").forEach(b => b.addEventListener("click", () => {
+    $$("[data-un]").forEach(b => b.addEventListener("click", e => {
+      e.stopPropagation();
       Store.set({ favorites: Store.get().favorites.filter(f => f !== b.dataset.un) });
       toast("已取消收藏");
       renderFavs();
     }));
+    $$("[data-try]").forEach(b => b.addEventListener("click", e => {
+      e.stopPropagation();
+      location.href = `tryon.html?outfit=${b.dataset.try}`;
+    }));
+    $$("#favGrid .ocard").forEach(c => c.addEventListener("click", () =>
+      location.href = `outfit-detail.html?id=${c.dataset.id}`));
   }
 
   /* 我的模特 */

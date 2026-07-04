@@ -24,7 +24,9 @@
   --font-display: "Archivo Black", "PingFang SC", "Heiti SC", sans-serif;
   --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "Heiti SC",
                "Microsoft YaHei", sans-serif;
-  --nav-h: 78px;
+  /* iOS 规范：16pt 页边距、49pt TabBar + 底部安全区 */
+  --pad: 16px;
+  --nav-h: 82px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -71,7 +73,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 24px 6px;
+  padding: 14px var(--pad) 6px;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: .02em;
@@ -88,7 +90,7 @@ body {
 }
 
 /* ---------- 页头 ---------- */
-.pagehead { padding: 10px 24px 4px; display: flex; align-items: center; gap: 12px; }
+.pagehead { padding: 10px var(--pad) 4px; display: flex; align-items: center; gap: 12px; }
 .pagehead .grow { flex: 1; }
 
 .brand {
@@ -106,12 +108,12 @@ body {
 }
 .h-sub { color: var(--ink-2); font-size: 15px; margin-top: 10px; line-height: 1.6; }
 
-.section-title { font-size: 19px; font-weight: 800; }
+.section-title { font-size: 20px; font-weight: 800; }
 .section-note { font-size: 13px; color: var(--muted); }
 
-/* 圆形图标按钮（返回 / 关闭） */
+/* 圆形图标按钮（返回 / 关闭）· iOS 最小可点区域 44pt */
 .iconbtn {
-  width: 40px; height: 40px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   border: none; background: var(--card);
   box-shadow: var(--shadow-card);
   display: inline-flex; align-items: center; justify-content: center;
@@ -126,8 +128,9 @@ body {
   border: none; cursor: pointer;
   border-radius: 999px;
   font-family: var(--font-body);
-  font-size: 16.5px; font-weight: 700;
-  padding: 16px 24px;
+  font-size: 17px; font-weight: 600;   /* iOS Body 17pt Semibold */
+  min-height: 50px;
+  padding: 14px 24px;
   transition: transform .12s ease, opacity .15s ease;
   text-decoration: none;
 }
@@ -151,7 +154,7 @@ body {
 }
 
 /* ---------- Chips ---------- */
-.chips { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 4px 24px; }
+.chips { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 4px var(--pad); }
 .chips::-webkit-scrollbar { display: none; }
 .chip {
   flex: none;
@@ -160,7 +163,7 @@ body {
   border-radius: 999px;
   background: var(--card);
   border: 1.5px solid var(--line);
-  font-size: 14.5px; font-weight: 600; color: var(--ink-2);
+  font-size: 15px; font-weight: 600; color: var(--ink-2);  /* iOS Subheadline 15pt */
   cursor: pointer; user-select: none;
   transition: all .15s ease;
 }
@@ -198,14 +201,14 @@ body {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   align-items: stretch;
-  padding-bottom: 10px;
+  padding-bottom: 18px;   /* iOS Home Indicator 安全区 */
 }
 .tabbar a {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   text-decoration: none; color: var(--muted);
-  font-size: 11.5px; font-weight: 600;
+  font-size: 10px; font-weight: 500;   /* iOS TabBar 标签 10pt */
 }
-.tabbar a svg { width: 24px; height: 24px; }
+.tabbar a svg { width: 25px; height: 25px; }
 .tabbar a.active { color: var(--ink); }
 .tabbar .fab-slot { position: relative; }
 .fab {
@@ -219,8 +222,8 @@ body {
 }
 .fab:active { transform: translateX(-50%) scale(.94); }
 .fab-slot .fab-label {
-  position: absolute; left: 0; right: 0; bottom: 12px;
-  text-align: center; font-size: 11.5px; font-weight: 600; color: var(--muted);
+  position: absolute; left: 0; right: 0; bottom: 18px;
+  text-align: center; font-size: 10px; font-weight: 500; color: var(--muted);
 }
 
 /* ---------- 半屏抽屉 Sheet ---------- */
@@ -299,7 +302,7 @@ body {
 }
 
 /* ---------- 通用工具 ---------- */
-.px { padding-left: 24px; padding-right: 24px; }
+.px { padding-left: var(--pad); padding-right: var(--pad); }
 .grow { flex: 1; }
 .row { display: flex; align-items: center; gap: 12px; }
 .scroll-body { flex: 1; overflow-y: auto; }
@@ -325,7 +328,7 @@ body {
 }
 .field input {
   flex: 1; border: none; outline: none; background: none;
-  font-size: 16px; font-family: var(--font-body); color: var(--ink);
+  font-size: 17px; font-family: var(--font-body); color: var(--ink);  /* iOS Body 17pt */
 }
 .field input::placeholder { color: var(--muted); }
 .field .field-act { border: none; background: none; font-size: 14.5px; font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; }

@@ -23,6 +23,7 @@
 
 设计令牌都在 `css/base.css` 的 `:root` 里，新页面必须复用，不许自造颜色/圆角：
 
+- 尺寸间距遵循 iOS HIG：页边距 `--pad`(16px)、可点区域 ≥44pt、正文 17pt、TabBar 标签 10pt
 - 白底 `--bg` + 近黑主色 `--ink`，卡片纯白大圆角（`--r-lg`/`--r-xl`）
 - 按钮一律胶囊形：主按钮黑底白字 `.btn-primary`，次按钮白底描边 `.btn-ghost`
 - 标题超粗（font-weight 900），正文用系统苹方
@@ -36,21 +37,24 @@
 index.html          总览页（桌面演示用，手机壳网格展示全部页面）
 login.html        → signup.html（邮箱注册）
                   → onboarding.html（4步引导：性别/职业/偏好/选单品）→ home.html
-home.html           首页：AI推荐卡 / 场景chips / 成套搭配卡 → tryon.html / outfit-detail.html
-tryon.html          模特试穿：?outfit=oX 或 ?item=tXX；底部抽屉换装、替换弹层、AI搭配
-outfit-detail.html  穿搭详情：?id=oX
+home.html           首页「灵感试穿」：场景chips + 搭配卡（纯图片，左下收藏/右下试穿）→ tryon / outfit-detail
+tryon.html          模特试穿：?outfit=oX / ?item=tXX / ?items=a,b,c；抽屉两tab（穿搭/我的衣服），+号打开系统相册直接选图入橱，AI搭配
+outfit-detail.html  穿搭详情：?id=oX；只展示图片，点任意单品弹「替换XX」弹窗（同分类可选）
 add-clothes.html    添加衣服：入口(深色) → 扫描 → 单品识别 → 入橱
 create-model.html   创建模特：预设/我的照片、上传提示sheet、失败弹窗（"现在拍一张"=演示失败路径，"打开相册"=成功路径）
-wardrobe.html       衣橱：单品/穿搭tab、圆形分类筛选、去搭配
-history.html        试衣历史：场景筛选、编辑删除
-profile.html        我的：收藏/模特两tab
+wardrobe.html       衣橱：圆形分类筛选，整卡可点跳 tryon
+history.html        试衣间：3列等高图片墙（无标签），点卡片进 iOS 图库式查看器（大图+底部缩略图切换），编辑删除
+profile.html        我的：收藏（与首页同款卡片，星标为已选中态）/模特两tab
 ```
+
+**UI 上明确删除过的元素（不要加回来）**：登录页问号、Google 登录、首页天气/黑色AI推荐卡/聊一聊输入框、卡片文字说明（名称/场景/件数）、穿搭详情的分享/标签/描述文案、试穿页左侧穿着小图列/保存按钮/衣橱推荐灵感chips、衣橱页单品穿搭切换/右上筛选图标、试衣间卡片上的场景和时间标签。
 
 底部导航五项：首页 / 衣橱 / 上传(+) / 试衣间 / 我的（见 `js/app.js` 的 `TABS`）。
 
 ## 数据与状态
 
-- 演示数据在 `js/data.js`：`ITEMS`（15件单品）、`OUTFITS`（8套搭配）、`CATS`、`SCENES`
+- 演示数据在 `js/data.js`：`ITEMS`（14件单品）、`OUTFITS`（8套搭配）、`SCENES`
+- 衣物分类固定为 `CATS = 全部/上衣/下装/鞋子/连体裙`，全站统一，不许增删
 - 运行时状态存 localStorage（key `aiwd-state`），通过 `Store.get()/Store.set()` 读写：
   衣橱、收藏、试衣历史、用户上传的单品和模特照片、引导问卷答案
 - 图片机制：单品图先找 `assets/real/<id>.png` → `.jpg` → 回退到 `assets/ph/<剪影>.svg` 占位图。

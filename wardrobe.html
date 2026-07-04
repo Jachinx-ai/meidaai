@@ -7,21 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/base.css">
 <style>
-  .seg { display: flex; gap: 22px; align-items: baseline; }
-  .seg button {
-    border: none; background: none; cursor: pointer;
-    font-family: var(--font-body);
-    font-size: 24px; font-weight: 900; color: var(--muted);
-    padding: 0 0 6px; position: relative;
-  }
-  .seg button.on { color: var(--ink); }
-  .seg button.on::after {
-    content: ""; position: absolute; left: 0; bottom: 0;
-    width: 26px; height: 3.5px; border-radius: 2px; background: var(--ink);
-  }
-
   /* 圆形分类筛选 */
-  .catbar { display: flex; gap: 16px; overflow-x: auto; scrollbar-width: none; padding: 14px 24px 6px; }
+  .catbar { display: flex; gap: 16px; overflow-x: auto; scrollbar-width: none; padding: 14px var(--pad) 6px; }
   .catbar::-webkit-scrollbar { display: none; }
   .catdot { flex: none; text-align: center; cursor: pointer; }
   .catdot .cir {
@@ -37,53 +24,42 @@
   .catdot .badge {
     position: absolute; top: -4px; right: -6px;
     background: var(--card); border-radius: 999px;
-    font-size: 11px; font-weight: 800; padding: 3px 7px;
+    font-size: 11px; font-weight: 700; padding: 3px 7px;
     box-shadow: var(--shadow-card);
   }
-  .catdot .lbl { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-top: 7px; }
-  .catdot.on .lbl { color: var(--ink); font-weight: 800; }
+  .catdot .lbl { display: block; font-size: 12px; font-weight: 500; color: var(--ink-2); margin-top: 7px; }
+  .catdot.on .lbl { color: var(--ink); font-weight: 700; }
 
   /* 单品网格 */
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 14px 24px 26px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 14px var(--pad) 26px; }
   .icard {
+    min-width: 0;
     background: var(--card); border-radius: var(--r-lg);
     box-shadow: var(--shadow-card); padding: 16px 14px 14px;
-    text-align: center;
+    text-align: center; cursor: pointer;
   }
   .icard .imgwrap { height: 128px; display: flex; align-items: center; justify-content: center; }
   .icard img { max-width: 100%; max-height: 100%; object-fit: contain; }
-  .icard .nm { font-size: 13px; color: var(--ink-2); margin: 10px 0 10px; }
   .match-pill {
-    width: 100%;
+    width: 100%; margin-top: 12px;
     border: none; background: var(--fill); color: var(--ink);
-    padding: 10px 0; border-radius: 999px;
-    font-size: 13.5px; font-weight: 700; cursor: pointer;
+    padding: 11px 0; border-radius: 999px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
   }
   .match-pill:active { background: var(--fill-2); }
 
-  .empty { text-align: center; color: var(--muted); padding: 70px 40px; font-size: 14.5px; line-height: 2; }
+  .empty { text-align: center; color: var(--muted); padding: 70px 40px; font-size: 15px; line-height: 2; }
 </style>
 </head>
 <body>
 <div class="app">
 
   <div class="pagehead" style="padding-top:14px">
-    <div class="seg rise">
-      <button class="on" data-tab="item">单品</button>
-      <button data-tab="outfit">穿搭</button>
-    </div>
-    <span class="grow"></span>
-    <button class="iconbtn rise" onclick="toast('筛选功能即将上线')">≡</button>
+    <div class="h-display rise" style="font-size:28px">衣橱</div>
   </div>
 
-  <div id="tabItem">
-    <div class="catbar rise d1" id="catbar"></div>
-    <div class="grid2 rise d2" id="itemGrid"></div>
-  </div>
-
-  <div id="tabOutfit" class="hidden">
-    <div class="grid2 rise" id="outfitGrid" style="padding-top:18px"></div>
-  </div>
+  <div class="catbar rise d1" id="catbar"></div>
+  <div class="grid2 rise d2" id="itemGrid"></div>
 </div>
 
 <script src="js/data.js"></script>
@@ -92,15 +68,6 @@
   renderStatusbar();
   renderTabbar("wardrobe");
 
-  /* 单品 / 穿搭 切换 */
-  $$(".seg button").forEach(b => b.addEventListener("click", () => {
-    $$(".seg button").forEach(x => x.classList.remove("on"));
-    b.classList.add("on");
-    $("#tabItem").classList.toggle("hidden", b.dataset.tab !== "item");
-    $("#tabOutfit").classList.toggle("hidden", b.dataset.tab !== "outfit");
-  }));
-
-  /* 分类圆点 */
   let cat = "全部";
   function renderCats() {
     const items = wardrobeItems();
@@ -121,35 +88,19 @@
     }));
   }
 
-  /* 单品网格 */
   function renderItems() {
     const list = wardrobeItems().filter(i => cat === "全部" || i.cat === cat);
     $("#itemGrid").innerHTML = list.length ? list.map(it => `
-      <div class="icard">
+      <div class="icard" data-go="${it.id}">
         <div class="imgwrap">${it.dataUrl ? `<img src="${it.dataUrl}">` : itemImg(it)}</div>
-        <div class="nm">${it.name}</div>
-        <button class="match-pill" onclick="location.href='tryon.html?item=${it.id}'">去搭配</button>
+        <button class="match-pill">去搭配</button>
       </div>`).join("")
       : `<div class="empty" style="grid-column:1/-1">这个分类还没有衣服<br>点底部 + 号上传第一件吧</div>`;
+    $$("[data-go]").forEach(c => c.addEventListener("click", () =>
+      location.href = `tryon.html?item=${c.dataset.go}`));
   }
 
-  /* 穿搭 tab（模板 + 收藏状态） */
-  function renderOutfitTab() {
-    const favs = Store.get().favorites;
-    $("#outfitGrid").innerHTML = OUTFITS.map(o => {
-      const its = o.items.map(itemById);
-      return `
-      <div class="icard" style="cursor:pointer" onclick="location.href='outfit-detail.html?id=${o.id}'">
-        <div class="imgwrap" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;align-items:center">
-          ${its.slice(0, 4).map(i => itemImg(i)).join("")}
-        </div>
-        <div class="nm">${favs.includes(o.id) ? "★ " : ""}${o.name} · ${o.scene}</div>
-        <button class="match-pill" onclick="event.stopPropagation();location.href='tryon.html?outfit=${o.id}'">试穿</button>
-      </div>`;
-    }).join("");
-  }
-
-  renderCats(); renderItems(); renderOutfitTab();
+  renderCats(); renderItems();
 </script>
 </body>
 </html>
