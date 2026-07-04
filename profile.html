@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>我的 · AI穿搭助手</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<style>
+  .user-row { display: flex; align-items: center; gap: 16px; padding: 18px 24px 8px; }
+  .avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--ink); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 900;
+    border: 3px solid #fff; box-shadow: var(--shadow-card);
+  }
+  .uname { font-size: 21px; font-weight: 900; }
+  .usub { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+
+  .seg { display: flex; gap: 24px; padding: 22px 24px 0; }
+  .seg button {
+    border: none; background: none; cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 17px; font-weight: 800; color: var(--muted);
+    padding: 0 0 10px; position: relative;
+  }
+  .seg button.on { color: var(--ink); }
+  .seg button.on::after {
+    content: ""; position: absolute; left: 50%; transform: translateX(-50%); bottom: 0;
+    width: 26px; height: 3.5px; border-radius: 2px; background: var(--ink);
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 18px 24px 26px; }
+  .fcard { background: var(--card); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 14px; }
+  .fcard .imgs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; min-height: 110px; align-items: center; }
+  .fcard .imgs img { width: 100%; aspect-ratio: 1; object-fit: contain; }
+  .fcard .nm { font-size: 13.5px; font-weight: 700; margin: 8px 0 10px; }
+  .fcard .acts { display: flex; gap: 8px; }
+  .fcard .acts button {
+    flex: 1; border: none; border-radius: 999px; padding: 9px 0;
+    font-size: 12.5px; font-weight: 700; cursor: pointer;
+  }
+  .b-star { background: var(--fill); color: var(--ink); }
+  .b-try { background: var(--ink); color: #fff; }
+
+  /* 我的模特 */
+  .model-stage { padding: 18px 24px 8px; }
+  .model-card {
+    position: relative;
+    background: var(--grad-soft);
+    border-radius: var(--r-xl);
+    aspect-ratio: .8;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .model-card img { max-height: 88%; max-width: 80%; object-fit: contain; }
+  .model-card .del {
+    position: absolute; right: 14px; bottom: 14px;
+    width: 40px; height: 40px; border-radius: 50%;
+    border: none; background: rgba(255,255,255,.92);
+    font-size: 16px; cursor: pointer; box-shadow: var(--shadow-card);
+  }
+  .model-name { text-align: center; font-size: 14px; font-weight: 700; color: var(--ink-2); margin-top: 12px; }
+  .model-strip { display: flex; gap: 12px; padding: 18px 24px 26px; overflow-x: auto; scrollbar-width: none; }
+  .model-strip::-webkit-scrollbar { display: none; }
+  .mthumb {
+    flex: none; width: 76px; height: 100px;
+    border-radius: var(--r-md); background: var(--fill);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    font-size: 12.5px; font-weight: 700; color: var(--ink-2);
+    cursor: pointer; border: 2px solid transparent;
+    overflow: hidden;
+  }
+  .mthumb.on { border-color: var(--ink); background: #fff; }
+  .mthumb img { width: 100%; height: 100%; object-fit: cover; }
+  .mthumb.add { border: 1.5px dashed #cfcfcc; background: none; font-size: 20px; }
+  .empty { text-align: center; color: var(--muted); padding: 70px 40px; font-size: 14.5px; line-height: 2; grid-column: 1/-1; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="user-row">
+    <div class="avatar rise">时</div>
+    <div class="rise d1">
+      <div class="uname">时髦精本人</div>
+      <div class="usub" id="usub"></div>
+    </div>
+    <span class="grow"></span>
+    <button class="iconbtn rise d1" onclick="toast('设置功能即将上线')">⚙</button>
+  </div>
+
+  <div class="seg rise d2">
+    <button class="on" data-tab="fav">我的收藏</button>
+    <button data-tab="model">我的模特</button>
+  </div>
+
+  <div id="tabFav">
+    <div class="grid2" id="favGrid"></div>
+  </div>
+
+  <div id="tabModel" class="hidden">
+    <div class="model-stage">
+      <div class="model-card" id="modelCard"></div>
+      <div class="model-name" id="modelName"></div>
+    </div>
+    <div class="model-strip" id="modelStrip"></div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+  renderStatusbar();
+  renderTabbar("me");
+
+  const p = Store.get().profile;
+  $("#usub").textContent = [p.gender, p.job].filter(Boolean).join(" · ") || "点右侧设置完善资料";
+
+  $$(".seg button").forEach(b => b.addEventListener("click", () => {
+    $$(".seg button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    $("#tabFav").classList.toggle("hidden", b.dataset.tab !== "fav");
+    $("#tabModel").classList.toggle("hidden", b.dataset.tab !== "model");
+  }));
+
+  /* 我的收藏 */
+  function renderFavs() {
+    const favs = Store.get().favorites;
+    const list = OUTFITS.filter(o => favs.includes(o.id));
+    $("#favGrid").innerHTML = list.length ? list.map(o => `
+      <div class="fcard">
+        <div class="imgs">${o.items.slice(0, 4).map(id => itemImg(itemById(id))).join("")}</div>
+        <div class="nm">${o.name} · ${o.scene}</div>
+        <div class="acts">
+          <button class="b-star" data-un="${o.id}">★ 已收藏</button>
+          <button class="b-try" onclick="location.href='tryon.html?outfit=${o.id}'">试穿</button>
+        </div>
+      </div>`).join("")
+      : `<div class="empty">还没有收藏的搭配<br>去首页给喜欢的搭配点 ★ 吧</div>`;
+    $$("[data-un]").forEach(b => b.addEventListener("click", () => {
+      Store.set({ favorites: Store.get().favorites.filter(f => f !== b.dataset.un) });
+      toast("已取消收藏");
+      renderFavs();
+    }));
+  }
+
+  /* 我的模特 */
+  function renderModels() {
+    const s = Store.get();
+    const cur = s.models.find(m => m.id === s.curModel) || s.models[0];
+    $("#modelCard").innerHTML = `
+      ${cur.dataUrl ? `<img src="${cur.dataUrl}">` : `<img src="assets/ph/model.svg" style="opacity:.9">`}
+      ${s.models.length > 1 ? `<button class="del" id="btnDelModel">🗑</button>` : ""}`;
+    $("#modelName").textContent = cur.name;
+    $("#modelStrip").innerHTML = `
+      <div class="mthumb add" onclick="location.href='create-model.html'">＋<span style="font-size:11px">添加</span></div>
+      ${s.models.map(m => `
+        <div class="mthumb ${m.id === cur.id ? "on" : ""}" data-m="${m.id}">
+          ${m.dataUrl ? `<img src="${m.dataUrl}">` : "👤 " + m.name}
+        </div>`).join("")}`;
+    $$("[data-m]").forEach(t => t.addEventListener("click", () => {
+      Store.set({ curModel: t.dataset.m });
+      renderModels();
+    }));
+    $("#btnDelModel")?.addEventListener("click", () => {
+      const left = s.models.filter(m => m.id !== cur.id);
+      Store.set({ models: left, curModel: left[0].id });
+      toast("已删除该模特");
+      renderModels();
+    });
+  }
+
+  renderFavs(); renderModels();
+</script>
+</body>
+</html>

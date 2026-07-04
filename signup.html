@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>邮箱注册 · AI穿搭助手</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<style>
+  .form { padding: 18px 24px; display: flex; flex-direction: column; gap: 14px; }
+  .form-tip { font-size: 13px; color: var(--muted); line-height: 1.8; padding: 4px 2px; }
+  .head-title { font-size: 18px; font-weight: 800; text-align: center; flex: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="pagehead">
+    <button class="iconbtn" onclick="history.back()">‹</button>
+    <div class="head-title">注册</div>
+    <span style="width:40px"></span>
+  </div>
+
+  <div class="form">
+    <div class="field rise"><input type="email" id="email" placeholder="请输入邮箱地址"></div>
+    <div class="field rise d1">
+      <input type="text" id="code" placeholder="请输入邮箱验证码">
+      <button class="field-act" id="sendCode">发送验证码</button>
+    </div>
+    <div class="field rise d2">
+      <input type="password" id="pwd" placeholder="请设置密码">
+      <button class="field-act" id="togglePwd">👁</button>
+    </div>
+
+    <p class="form-tip rise d3">邮箱账号仅用于记录会员资格，方便安卓或跨平台使用，我们不会向第三方泄露你的邮箱。</p>
+
+    <label class="agree rise d3">
+      <input type="checkbox" class="checkbox" id="agreeChk" checked>
+      <span>已阅读并同意 <a href="javascript:;">《会员说明》</a><a href="javascript:;">《隐私政策》</a></span>
+    </label>
+
+    <div style="height:8px"></div>
+    <button class="btn btn-primary btn-block rise d4" id="btnReg" disabled>注册</button>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+  renderStatusbar();
+
+  const inputs = ["#email", "#code", "#pwd"].map(s => $(s));
+  function check() {
+    $("#btnReg").disabled = !(inputs.every(i => i.value.trim()) && $("#agreeChk").checked);
+  }
+  inputs.forEach(i => i.addEventListener("input", check));
+  $("#agreeChk").addEventListener("change", check);
+
+  let cd = 0, cdTimer;
+  $("#sendCode").addEventListener("click", () => {
+    if (cd > 0) return;
+    if (!$("#email").value.trim()) { toast("请先输入邮箱地址"); return; }
+    toast("验证码已发送到邮箱");
+    cd = 60;
+    $("#sendCode").disabled = true;
+    cdTimer = setInterval(() => {
+      cd--;
+      $("#sendCode").textContent = cd > 0 ? `${cd}s 后重发` : "发送验证码";
+      if (cd <= 0) { clearInterval(cdTimer); $("#sendCode").disabled = false; }
+    }, 1000);
+  });
+
+  $("#togglePwd").addEventListener("click", () => {
+    const p = $("#pwd");
+    p.type = p.type === "password" ? "text" : "password";
+  });
+
+  $("#btnReg").addEventListener("click", () => {
+    $("#btnReg").textContent = "注册中…";
+    setTimeout(() => {
+      toast("注册成功");
+      setTimeout(() => location.href = "onboarding.html", 500);
+    }, 800);
+  });
+</script>
+</body>
+</html>
