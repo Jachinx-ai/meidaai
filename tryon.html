@@ -211,7 +211,7 @@
     }
     wrap.innerHTML = `<img class="base" id="modelImg"
         src="${m.dataUrl || "assets/ph/model.svg"}"
-        style="${m.dataUrl ? "border-radius:18px" : ""}" alt="试衣模特">` +
+        style="${m.dataUrl ? "border-radius:18px" : modelShapeCss(m)}" alt="试衣模特">` +
       wearing.map(id => {
         const it = itemById(id);
         if (!it) return "";
@@ -285,7 +285,12 @@
     const base = await loadImg(m.dataUrl || "assets/ph/model.svg");
     const bw = base.width || 240, bh = base.height || 480;
     const scale = Math.min((W * .62) / bw, (H * .92) / bh);
-    const dw = bw * scale, dh = bh * scale;
+    let dw = bw * scale, dh = bh * scale;
+    /* 预设模特体型差异 */
+    const shape = m.dataUrl ? "" : m.shape;
+    if (shape === "tall") dh *= 1.08;
+    if (shape === "wide") dw *= 1.24;
+    if (shape === "petite") { dw *= .85; dh *= .85; }
     ctx.drawImage(base, (W - dw) / 2, H - dh, dw, dh);
 
     for (const id of wearing) {

@@ -209,23 +209,15 @@
     $("#paneMine").classList.toggle("hidden", b.dataset.t !== "mine");
   }));
 
-  /* 预设模特 */
-  const PRESETS = [
-    { id: "m1", name: "默认模特" }, { id: "p2", name: "高个模特" },
-    { id: "p3", name: "微胖模特" }, { id: "p4", name: "小个子模特" },
-  ];
+  /* 预设模特（PRESET_MODELS 在 js/data.js，默认全部在模特列表里） */
   function renderPresets() {
     const s = Store.get();
-    $("#presetGrid").innerHTML = PRESETS.map(p => `
+    $("#presetGrid").innerHTML = PRESET_MODELS.map(p => `
       <div class="preset ${s.curModel === p.id ? "on" : ""}" data-p="${p.id}" data-nm="${p.name}">
         <span class="nm">${p.name}</span>
-        <img src="assets/ph/model.svg">
+        <img src="assets/ph/model.svg" style="${modelShapeCss(p)}">
       </div>`).join("");
     $$("[data-p]").forEach(c => c.addEventListener("click", () => {
-      const s = Store.get();
-      if (!s.models.find(m => m.id === c.dataset.p)) {
-        Store.set({ models: [...s.models, { id: c.dataset.p, name: c.dataset.nm, dataUrl: null }] });
-      }
       Store.set({ curModel: c.dataset.p });
       renderPresets();
       toast(`已选用「${c.dataset.nm}」`);

@@ -178,14 +178,16 @@
     const s = Store.get();
     const cur = s.models.find(m => m.id === s.curModel) || s.models[0];
     $("#modelCard").innerHTML = `
-      ${cur.dataUrl ? `<img src="${cur.dataUrl}">` : `<img src="assets/ph/model.svg" style="opacity:.9">`}
-      ${s.models.length > 1 ? `<button class="del" id="btnDelModel">🗑</button>` : ""}`;
+      ${cur.dataUrl ? `<img src="${cur.dataUrl}">` : `<img src="assets/ph/model.svg" style="opacity:.9;${modelShapeCss(cur)}">`}
+      ${cur.dataUrl ? `<button class="del" id="btnDelModel">🗑</button>` : ""}`;
     $("#modelName").textContent = cur.name;
     $("#modelStrip").innerHTML = `
       <div class="mthumb add" onclick="location.href='create-model.html'">＋<span style="font-size:11px">添加</span></div>
       ${s.models.map(m => `
-        <div class="mthumb ${m.id === cur.id ? "on" : ""}" data-m="${m.id}">
-          ${m.dataUrl ? `<img src="${m.dataUrl}">` : "👤 " + m.name}
+        <div class="mthumb ${m.id === cur.id ? "on" : ""}" data-m="${m.id}" title="${m.name}">
+          ${m.dataUrl
+            ? `<img src="${m.dataUrl}">`
+            : `<img src="assets/ph/model.svg" style="object-fit:contain;padding:8px 0;${modelShapeCss(m)}">`}
         </div>`).join("")}`;
     $$("[data-m]").forEach(t => t.addEventListener("click", () => {
       Store.set({ curModel: t.dataset.m });

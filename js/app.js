@@ -13,7 +13,7 @@ const Store = {
       customItems: [],                   // 用户上传的单品 {id,name,cat,dataUrl}
       favorites: [],                     // 收藏的搭配 id
       history: [],                       // 试衣历史 {id,outfitId,items,scene,time}
-      models: [{ id: "m1", name: "默认模特", dataUrl: null }],
+      models: PRESET_MODELS.map(p => ({ ...p, dataUrl: null })),
       curModel: "m1",
       profile: { gender: "", job: "", pref: [] },
       onboarded: false,
@@ -23,6 +23,11 @@ const Store = {
     if (!this._cache) {
       try { this._cache = { ...this.defaults(), ...JSON.parse(localStorage.getItem(this.KEY) || "{}") }; }
       catch { this._cache = this.defaults(); }
+      /* 迁移：老数据补齐 4 个预设模特 */
+      const have = new Set(this._cache.models.map(m => m.id));
+      PRESET_MODELS.forEach(p => {
+        if (!have.has(p.id)) this._cache.models.push({ ...p, dataUrl: null });
+      });
     }
     return this._cache;
   },
@@ -133,6 +138,15 @@ function renderChips(container, list, onPick, active = 0) {
     const c = list[+chip.dataset.i];
     onPick(typeof c === "string" ? c : c.key);
   }));
+}
+
+/* 预设模特剪影的体型差异（CSS transform） */
+function modelShapeCss(m) {
+  return {
+    tall:   "transform:scaleY(1.08);transform-origin:bottom center;",
+    wide:   "transform:scaleX(1.24);transform-origin:bottom center;",
+    petite: "transform:scale(.85);transform-origin:bottom center;",
+  }[m && m.shape] || "";
 }
 
 /* 压缩图片：限制最大边长并转 JPEG，防止 localStorage 超限 */
