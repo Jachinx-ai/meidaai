@@ -126,7 +126,7 @@
       <button class="iconbtn" id="btnFav" title="收藏">★</button>
     </div>
 
-    <button class="btn ai-pill ai-match" id="btnAI">✦ AI 一键搭配</button>
+    <button class="btn ai-pill ai-match" id="btnAI">✦ AI 搭配我的衣服</button>
   </div>
 
   <div class="drawer">
@@ -289,7 +289,7 @@
         : [aiPickCat("连体裙"), aiPickCat("鞋子")]).filter(Boolean);
       curOutfitId = null;
       renderAll();
-      btn.innerHTML = "✦ AI 一键搭配";
+      btn.innerHTML = "✦ AI 搭配我的衣服";
       toast("AI 已为你搭配一套新造型");
     }, 900);
   });
@@ -302,7 +302,7 @@
       wearing = aiOutfitAround(aiAround);
       curOutfitId = null;
       renderAll();
-      btn.innerHTML = "✦ AI 一键搭配";
+      btn.innerHTML = "✦ AI 搭配我的衣服";
       toast("AI 已围绕这件衣服完成搭配");
     }, 1000);
   }
