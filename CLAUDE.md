@@ -4,20 +4,31 @@
 
 ## 项目定位（最重要）
 
-这是一个**移动端网页高保真可交互原型**，用途是向团队成员演示产品的功能和流程。
+这是一个**能跑起来的移动端网页产品**（从高保真原型升级而来）：功能真实可用，
+三个 AI 能力（抠图/试穿/搭配）目前是占位实现，后续由团队替换成选定的模型 API。
 
-- ✅ 只做：页面 UI、页面间跳转、模拟交互（假数据、假延时、localStorage 存状态）
-- ❌ 不做：真实后端、真实 AI 能力、登录鉴权、数据库、任何服务端代码
+- ✅ 做：页面 UI、真实交互、轻量后端 AI 接口层（占位实现，接口契约固定）
+- ❌ 不做：登录鉴权、数据库（数据存 localStorage）、自己训练模型
 - 团队成员都通过 AI 助手改代码（没有人手写代码），所以**代码要简单直白，改动要克制**
 - 产品设计由项目负责人在 Figma 上出图，AI 依据设计图/口头描述改页面
 
 ## 技术约定（不要违反）
 
-- **纯 HTML + CSS + 原生 JS**，多页面结构，双击 HTML 文件即可打开
-- **禁止**引入 React/Vue、打包工具（webpack/vite）、npm 依赖、CSS 框架（Tailwind 等）
+- 前端：**纯 HTML + CSS + 原生 JS**，多页面结构；**禁止**引入 React/Vue、打包工具、CSS 框架
+- 后端：`server/` 目录，Express 静态托管 + 三个 AI 接口；除 express 外**不随意加依赖**
 - 每个页面 = 根目录下一个独立 `.html` 文件，页内交互写在该文件的 `<script>` 里
-- 公共部分只有三处：`css/base.css`（设计系统）、`js/app.js`（公共组件/状态）、`js/data.js`（演示数据）
-- 本地预览：`npx http-server -p 8394`（配置在 `.claude/launch.json`），或直接双击 HTML
+- 公共部分四处：`css/base.css`（设计系统）、`js/app.js`（公共组件/状态）、`js/data.js`（演示数据）、
+  `js/ai.js`（AI 服务层：优先走后端 /api/*，后端不在线自动回退浏览器本地模拟，双击 HTML 也能用）
+- 启动：`cd server && npm install && npm start` → http://localhost:8394/login.html（配置在 `.claude/launch.json`）
+- **AI 能力替换点只在 `server/ai/` 三个文件里**（segment.js 抠图 / tryon.js 试穿 / recommend.js 搭配），
+  输入输出契约见各文件头部注释和 `server/模型接入说明.md`，改模型不许动前端
+
+## 试穿合成与试衣间
+
+- 试穿页舞台 = 模特图 + 当前穿着按分类叠图（CSS 类 `.worn.cat-XX`，位置常量 `CAT_POS`）；
+  真试穿模型接入后返回整图（`/api/tryon` 的 image 字段），前端自动改为展示整图
+- 每次完整试穿（≥2件）自动生成 canvas 快照存入试衣间（上限 20 条，连续重复不存）
+- 上传图片一律先 `compressImage()` 压缩再存 localStorage，防超限
 
 ## 设计风格（wearwow 式黑白极简，务必保持统一）
 

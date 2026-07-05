@@ -67,9 +67,10 @@
 <script>
   renderStatusbar();
 
-  /* 选图后：立刻回衣橱页，AI 识别在后台完成（由衣橱页接力演示） */
-  function bgAdd(dataUrl) {
-    Store.set({ pendingUpload: dataUrl || "ph" });
+  /* 选图后：压缩存起来，立刻回衣橱页，AI 抠图由衣橱页在后台完成 */
+  async function bgAdd(dataUrl) {
+    const small = dataUrl ? await compressImage(dataUrl) : "ph";
+    Store.set({ pendingUpload: small });
     location.href = "wardrobe.html";
   }
 

@@ -14,8 +14,24 @@
     height: 56dvh;
     display: flex; align-items: flex-end; justify-content: center;
     background: linear-gradient(180deg, #f2f2ef 0%, #e6e6e2 100%);
+    overflow: hidden;
   }
-  .stage .model-img { max-height: 92%; max-width: 70%; object-fit: contain; }
+  .model-wrap { position: relative; height: 92%; display: flex; align-items: flex-end; justify-content: center; }
+  .model-wrap img.base { height: 100%; width: auto; max-width: 62vw; object-fit: contain; display: block; }
+  /* AI 生成的整图结果（真模型接入后） */
+  .model-wrap img.gen { height: 100%; width: auto; max-width: 62vw; object-fit: contain; display: block; border-radius: 18px; }
+  /* 本地叠图合成：按分类定位 */
+  .worn {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    object-fit: contain;
+    filter: drop-shadow(0 4px 10px rgba(16,16,18,.18));
+    pointer-events: none;
+  }
+  .worn.cat-上衣   { top: 16%; height: 30%; max-width: 72%; }
+  .worn.cat-连体裙 { top: 16%; height: 52%; max-width: 66%; }
+  .worn.cat-下装   { top: 43%; height: 38%; max-width: 60%; }
+  .worn.cat-鞋子   { bottom: 0; height: 13%; max-width: 48%; }
+
   .stage-top {
     position: absolute; top: 8px; left: var(--pad); right: var(--pad);
     display: flex; align-items: center; z-index: 5;
@@ -120,7 +136,9 @@
       <div class="model-switch" id="modelSwitch" title="切换模特"></div>
     </div>
 
-    <img class="model-img" src="assets/ph/model.svg" id="modelImg" alt="试衣模特">
+    <div class="model-wrap" id="modelWrap">
+      <img class="base" src="assets/ph/model.svg" id="modelImg" alt="试衣模特">
+    </div>
 
     <div class="stage-side">
       <button class="iconbtn" id="btnFav" title="收藏">★</button>
@@ -151,6 +169,7 @@
 
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
+<script src="js/ai.js"></script>
 <script>
   renderStatusbar();
 
@@ -158,6 +177,7 @@
   let wearing = [];           // 当前上身的单品 id
   let curOutfitId = null;
   let aiAround = null;
+  let genImage = null;        // 真模型返回的整图结果（占位实现下为 null）
 
   /* 初始状态：?outfit= / ?items= / ?item= */
   if (qs.get("outfit")) {
@@ -167,22 +187,130 @@
     wearing = qs.get("items").split(",").filter(id => itemById(id));
   } else if (qs.get("item")) {
     wearing = [qs.get("item")];
-    aiAround = qs.get("item");   // 进页后围绕这件单品做 AI 搭配
+    aiAround = qs.get("item");
   } else {
     wearing = [...OUTFITS[0].items]; curOutfitId = OUTFITS[0].id;
   }
 
-  /* 模特 */
-  function renderModelBadge() {
+  /* ---------- 模特与上身合成 ---------- */
+  function curModel() {
     const s = Store.get();
-    const m = s.models.find(x => x.id === s.curModel) || s.models[0];
+    return s.models.find(x => x.id === s.curModel) || s.models[0];
+  }
+  function itemSrc(it) {
+    return it.dataUrl || `assets/real/${it.id}.png`;
+  }
+
+  /* 舞台渲染：有 AI 生成图用生成图，否则模特图 + 衣服按分类叠放 */
+  function renderStage() {
+    const m = curModel();
+    const wrap = $("#modelWrap");
+    if (genImage) {
+      wrap.innerHTML = `<img class="gen" src="${genImage}" alt="试穿效果">`;
+      return;
+    }
+    wrap.innerHTML = `<img class="base" id="modelImg"
+        src="${m.dataUrl || "assets/ph/model.svg"}"
+        style="${m.dataUrl ? "border-radius:18px" : ""}" alt="试衣模特">` +
+      wearing.map(id => {
+        const it = itemById(id);
+        if (!it) return "";
+        return `<img class="worn cat-${it.cat}" src="${itemSrc(it)}"
+          onerror="phFallback(this,'${it.ph}')" alt="${it.name}">`;
+      }).join("");
+  }
+
+  /* 调用试穿接口：真模型返回整图则展示整图，占位实现返回 null 则本地叠图 */
+  async function applyTryon() {
+    const m = curModel();
+    const items = wearing.map(id => {
+      const it = itemById(id);
+      return it ? { id: it.id, category: it.cat, image: it.dataUrl || null } : null;
+    }).filter(Boolean);
+    try {
+      const r = await AI.tryon(m.dataUrl || null, items);
+      genImage = r && r.image ? r.image : null;
+    } catch { genImage = null; }
+    renderStage();
+    saveSnapshot();
+  }
+
+  /* ---------- 试衣间快照：每次完整试穿自动记录 ---------- */
+  async function saveSnapshot() {
+    if (wearing.length < 2) return;   // 单件不算完整试穿
+    const s = Store.get();
+    const last = s.history[0];
+    const key = [...wearing].sort().join(",");
+    if (last && (last.items || []).slice().sort().join(",") === key) return;  // 连续重复不存
+
+    let image = genImage;
+    if (!image) {
+      try { image = await composeSnapshot(); } catch { image = null; }
+    }
+    const o = OUTFITS.find(x => x.id === curOutfitId);
+    Store.set({
+      history: [{
+        id: "h" + Date.now(), outfitId: curOutfitId,
+        items: [...wearing], scene: o ? o.scene : "其他",
+        time: Date.now(), image,
+      }, ...s.history].slice(0, 20),
+    });
+  }
+
+  /* 本地合成快照：模特图 + 衣服叠放 画到 canvas */
+  const CAT_POS = {
+    "上衣":   { top: .16, h: .30, maxW: .72 },
+    "连体裙": { top: .16, h: .52, maxW: .66 },
+    "下装":   { top: .43, h: .38, maxW: .60 },
+    "鞋子":   { top: .87, h: .13, maxW: .48 },
+  };
+  function loadImg(src) {
+    return new Promise((ok, no) => {
+      const im = new Image();
+      im.onload = () => ok(im);
+      im.onerror = no;
+      im.src = src;
+    });
+  }
+  async function composeSnapshot() {
+    const W = 480, H = 720;
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d");
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#f2f2ef"); g.addColorStop(1, "#e6e6e2");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    const m = curModel();
+    const base = await loadImg(m.dataUrl || "assets/ph/model.svg");
+    const bw = base.width || 240, bh = base.height || 480;
+    const scale = Math.min((W * .62) / bw, (H * .92) / bh);
+    const dw = bw * scale, dh = bh * scale;
+    ctx.drawImage(base, (W - dw) / 2, H - dh, dw, dh);
+
+    for (const id of wearing) {
+      const it = itemById(id);
+      const pos = it && CAT_POS[it.cat];
+      if (!pos) continue;
+      let im;
+      try { im = await loadImg(itemSrc(it)); }
+      catch { try { im = await loadImg(`assets/ph/${it.ph}.svg`); } catch { continue; } }
+      const iw = im.width || 200, ih = im.height || 200;
+      const s2 = Math.min((H * pos.h) / ih, (W * pos.maxW) / iw);
+      const w2 = iw * s2, h2 = ih * s2;
+      ctx.drawImage(im, (W - w2) / 2, H * pos.top, w2, h2);
+    }
+    return canvas.toDataURL("image/jpeg", 0.62);
+  }
+
+  /* ---------- 模特角标 ---------- */
+  function renderModelBadge() {
+    const m = curModel();
     $("#modelSwitch").innerHTML = m.dataUrl ? `<img src="${m.dataUrl}">` : "👤";
-    $("#modelImg").src = m.dataUrl || "assets/ph/model.svg";
-    $("#modelImg").style.borderRadius = m.dataUrl ? "18px" : "0";
   }
   $("#modelSwitch").addEventListener("click", () => location.href = "create-model.html");
 
-  /* ---- 穿搭 tab（被删衣服的搭配不再展示） ---- */
+  /* ---------- 穿搭 tab ---------- */
   function renderOutfitGrid() {
     $("#outfitGrid").innerHTML =
       `<div class="dcell add" data-add>＋</div>` +
@@ -192,14 +320,14 @@
         </div>`).join("");
     $$("[data-o]").forEach(c => c.addEventListener("click", () => {
       const o = OUTFITS.find(x => x.id === c.dataset.o);
-      wearing = [...o.items]; curOutfitId = o.id;
-      renderAll();
+      wearing = [...o.items]; curOutfitId = o.id; genImage = null;
+      renderAll(); applyTryon();
       toast(`已试穿「${o.name}」`);
     }));
     bindAdd();
   }
 
-  /* ---- 我的衣服 tab ---- */
+  /* ---------- 我的衣服 tab ---------- */
   let cFilter = "全部";
   function renderCatChips() {
     $("#catChips").innerHTML = CATS.map(c =>
@@ -220,7 +348,7 @@
     bindAdd();
   }
 
-  /* + 号：打开系统相册选图，加入衣橱 */
+  /* + 号：打开系统相册选图 → 压缩 → AI 抠图 → 入橱 */
   function bindAdd() {
     $$("[data-add]").forEach(c => c.onclick = () => $("#fileInput").click());
   }
@@ -228,18 +356,21 @@
     const f = e.target.files[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
+      toast("AI 正在抠图整理…");
+      const small = await compressImage(reader.result);
+      const r = await AI.segment(small);
       const cat = cFilter === "全部" ? "上衣" : cFilter;
-      const item = { id: "c" + Date.now(), name: "我的单品", cat, ph: "tee", dataUrl: reader.result };
+      const item = { id: "c" + Date.now(), name: "我的单品", cat, ph: "tee", dataUrl: r.image };
       Store.set({ customItems: [...Store.get().customItems, item] });
-      renderMineGrid();
+      renderMineGrid(); syncAIBtn();
       toast("已添加到衣橱");
     };
     reader.readAsDataURL(f);
     e.target.value = "";
   });
 
-  /* 穿上单品：同分类替换，不同分类叠加（连体裙与上/下装互斥） */
+  /* 穿上单品：同分类替换，连体裙与上/下装互斥 */
   function wearItem(id) {
     const it = itemById(id);
     const same = wearing.find(w => itemById(w)?.cat === it.cat);
@@ -250,64 +381,43 @@
       if (["上衣", "下装"].includes(it.cat)) wearing = wearing.filter(w => itemById(w)?.cat !== "连体裙");
       wearing = [...wearing, id];
     }
-    curOutfitId = null;
-    renderAll();
+    curOutfitId = null; genImage = null;
+    renderAll(); applyTryon();
     toast(`已换上「${it.name}」`);
   }
 
-  /* ---- AI 搭配：优先用用户上传的衣服，缺的分类用系统默认款补 ---- */
-  function aiPickCat(cat, excludeId) {
-    const pool = wardrobeItems().filter(i => i.cat === cat && i.id !== excludeId);
-    const mine = pool.filter(i => i.dataUrl);         // 用户上传的优先
-    const list = mine.length ? mine : pool;
-    return list.length ? list[Math.floor(Math.random() * list.length)].id : null;
-  }
-  function aiOutfitAround(id) {
-    const it = itemById(id);
-    if (!it) return [id];
-    const need = {
-      "上衣": ["下装", "鞋子"],
-      "下装": ["上衣", "鞋子"],
-      "连体裙": ["鞋子"],
-      "鞋子": Math.random() > .3 ? ["上衣", "下装"] : ["连体裙"],
-    }[it.cat] || [];
-    return [id, ...need.map(c => aiPickCat(c, id))].filter(Boolean);
-  }
+  /* ---------- AI 搭配 ---------- */
   function hasUploads() { return Store.get().customItems.length > 0; }
   function syncAIBtn() { $("#btnAI").classList.toggle("off", !hasUploads()); }
+
+  async function aiMatch(around) {
+    const btn = $("#btnAI");
+    btn.textContent = "✦ AI 搭配中…";
+    const r = await AI.recommend(wardrobeItems(), around);
+    if (r.items && r.items.length) {
+      wearing = r.items;
+      curOutfitId = null; genImage = null;
+      renderAll();
+      await applyTryon();
+      toast(around ? "AI 已围绕这件衣服完成搭配" : "AI 已为你搭配一套新造型");
+    } else {
+      toast("衣橱里的衣服不够搭一套，先多上传几件吧");
+    }
+    btn.innerHTML = "✦ AI 搭配我的衣服";
+  }
 
   $("#btnAI").addEventListener("click", () => {
     if (!hasUploads()) {
       toast("衣橱里还没有你的衣服，先上传一件再试试吧");
       return;
     }
-    const btn = $("#btnAI");
-    btn.textContent = "✦ AI 搭配中…";
-    setTimeout(() => {
-      wearing = (Math.random() > .3
-        ? [aiPickCat("上衣"), aiPickCat("下装"), aiPickCat("鞋子")]
-        : [aiPickCat("连体裙"), aiPickCat("鞋子")]).filter(Boolean);
-      curOutfitId = null;
-      renderAll();
-      btn.innerHTML = "✦ AI 搭配我的衣服";
-      toast("AI 已为你搭配一套新造型");
-    }, 900);
+    aiMatch(null);
   });
 
-  /* 从衣橱带单品进来：围绕它自动完成 AI 搭配 */
-  if (aiAround) {
-    const btn = $("#btnAI");
-    btn.textContent = "✦ AI 搭配中…";
-    setTimeout(() => {
-      wearing = aiOutfitAround(aiAround);
-      curOutfitId = null;
-      renderAll();
-      btn.innerHTML = "✦ AI 搭配我的衣服";
-      toast("AI 已围绕这件衣服完成搭配");
-    }, 1000);
-  }
+  /* 从衣橱带单品进来：围绕它自动 AI 搭配 */
+  if (aiAround) setTimeout(() => aiMatch(aiAround), 400);
 
-  /* 收藏 */
+  /* ---------- 收藏 ---------- */
   function syncFav() {
     $("#btnFav").style.color = curOutfitId && Store.get().favorites.includes(curOutfitId) ? "#101012" : "#c9c9c6";
   }
@@ -320,7 +430,7 @@
     toast(on ? "已取消收藏" : "已加入收藏");
   });
 
-  /* tab 切换 */
+  /* ---------- tab 切换 ---------- */
   $$(".dtabs button").forEach(b => b.addEventListener("click", () => {
     $$(".dtabs button").forEach(x => x.classList.remove("on"));
     b.classList.add("on");
@@ -332,9 +442,10 @@
   }));
 
   function renderAll() {
-    renderOutfitGrid(); renderMineGrid(); renderModelBadge(); syncFav(); syncAIBtn();
+    renderStage(); renderOutfitGrid(); renderMineGrid(); renderModelBadge(); syncFav(); syncAIBtn();
   }
   renderCatChips(); renderAll();
+  if (!aiAround) applyTryon();
 </script>
 </body>
 </html>

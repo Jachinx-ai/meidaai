@@ -286,14 +286,15 @@
     if (!f) return;
     closeSheet("sheetTip");
     const reader = new FileReader();
-    reader.onload = () => {
-      $("#scanImg").src = reader.result;
+    reader.onload = async () => {
+      const small = await compressImage(reader.result, 900, 0.8);
+      $("#scanImg").src = small;
       $("#scanVeil").classList.add("show");
       setTimeout(() => {
         $("#scanVeil").classList.remove("show");
         const id = "u" + Date.now();
         Store.set({
-          models: [...Store.get().models, { id, name: "我的模特", dataUrl: reader.result }],
+          models: [...Store.get().models, { id, name: "我的模特", dataUrl: small }],
           curModel: id,
         });
         toast("模特创建成功");

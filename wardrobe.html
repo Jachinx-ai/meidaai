@@ -84,6 +84,7 @@
 
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
+<script src="js/ai.js"></script>
 <script>
   renderStatusbar();
   renderTabbar("wardrobe");
@@ -142,17 +143,22 @@
 
   renderCats(); renderItems();
 
-  /* 从添加衣服页带回的上传：AI 在后台识别，完成后自动入橱 */
+  /* 从添加衣服页带回的上传：调用 AI 抠图接口，完成后自动入橱 */
   const pending = Store.get().pendingUpload;
   if (pending) {
     toast("上传成功，AI 正在后台抠图整理…");
-    setTimeout(() => {
+    (async () => {
+      let img = pending === "ph" ? null : pending;
+      if (img) {
+        const r = await AI.segment(img);   // 抠图（占位实现原图返回，换真模型后返回抠图）
+        img = r.image || img;
+      }
       const item = {
         id: "c" + Date.now(),
         name: "我的单品",
         cat: "上衣",
         ph: "tee",
-        dataUrl: pending === "ph" ? null : pending,
+        dataUrl: img,
       };
       Store.set({
         customItems: [...Store.get().customItems, item],
@@ -160,7 +166,7 @@
       });
       renderCats(); renderItems();
       toast("已添加到衣橱");
-    }, 1800);
+    })();
   }
 </script>
 </body>

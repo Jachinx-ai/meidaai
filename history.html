@@ -144,8 +144,10 @@
     $("#countNote").textContent = `共 ${l.length} 张 · 仅自己可见`;
     $("#grid").innerHTML = l.length ? l.map((h, i) => `
       <div class="hcard" data-id="${h.id}" data-i="${i}">
-        <div class="bg" style="background:${tintOf(i)}"></div>
-        <div class="fit"><img src="assets/ph/model.svg" alt="试衣照"></div>
+        ${h.image
+          ? `<img src="${h.image}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" alt="试衣照">`
+          : `<div class="bg" style="background:${tintOf(i)}"></div>
+             <div class="fit"><img src="assets/ph/model.svg" alt="试衣照"></div>`}
         <span class="ck"></span>
       </div>`).join("")
       : `<div class="empty" style="grid-column:1/-1">还没有试衣记录<br>去首页挑一套搭配试穿吧</div>`;
@@ -172,12 +174,19 @@
   function closeViewer() { $("#viewer").classList.remove("show"); }
   function renderViewer() {
     const l = list();
-    $("#vPhoto").style.background = tintOf(vIndex);
-    $("#vPhoto").innerHTML = `<img src="assets/ph/model.svg">`;
+    const cur = l[vIndex];
+    if (cur && cur.image) {
+      $("#vPhoto").style.background = "#1a1a1c";
+      $("#vPhoto").innerHTML = `<img src="${cur.image}" style="max-width:100%;max-height:100%;border-radius:20px;object-fit:contain">`;
+    } else {
+      $("#vPhoto").style.background = tintOf(vIndex);
+      $("#vPhoto").innerHTML = `<img src="assets/ph/model.svg">`;
+    }
     $("#vStrip").innerHTML = l.map((h, i) => `
       <div class="vthumb ${i === vIndex ? "on" : ""}" data-v="${i}">
-        <div class="bg" style="background:${tintOf(i)}"></div>
-        <img src="assets/ph/model.svg">
+        ${h.image
+          ? `<img src="${h.image}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`
+          : `<div class="bg" style="background:${tintOf(i)}"></div><img src="assets/ph/model.svg">`}
       </div>`).join("");
     $$("[data-v]").forEach(t => t.addEventListener("click", () => {
       vIndex = +t.dataset.v;

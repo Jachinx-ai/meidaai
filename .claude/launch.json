@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "prototype",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["-y", "http-server", "-p", "8394", "-c-1", "--silent"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server/server.js"],
       "port": 8394
     }
   ]
