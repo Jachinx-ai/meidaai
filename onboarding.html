@@ -7,23 +7,39 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/base.css">
 <style>
-  .step { flex: 1; display: none; flex-direction: column; padding: 0 24px; }
+  /* 引导页锁定为一屏：内容区滚动，底部按钮永远完整可见 */
+  .app { height: 100dvh; min-height: 0; }
+  .step { flex: 1; min-height: 0; display: none; flex-direction: column; padding: 0 var(--pad); }
   .step.on { display: flex; }
-  .step-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding-bottom: 60px; }
+  /* 内容区可滚动，保证底部按钮永远可见 */
+  .step-mid {
+    flex: 1; min-height: 0; overflow-y: auto;
+    display: flex; flex-direction: column; justify-content: flex-start;
+    padding: 7dvh 0 16px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   .picks { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-top: 30px; }
+  /* 选项图标与文字对齐 */
+  .pick .pi {
+    display: inline-flex; width: 22px; height: 22px;
+    align-items: center; justify-content: center;
+    font-style: normal; line-height: 1; font-size: 18px;
+  }
   .picks-wrap { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0 22px; }
   .group-label { font-size: 14px; color: var(--muted); font-weight: 600; margin-top: 20px; }
   .step-foot { padding: 14px 0 calc(26px + env(safe-area-inset-bottom)); }
   .skip { display: block; text-align: center; background: none; border: none; color: var(--muted); font-size: 15px; margin: 0 auto 14px; cursor: pointer; }
 
-  /* 步骤4：选单品 */
-  .items-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding-bottom: 16px; }
+  /* 步骤4：选单品（卡片紧凑，一排完整3个） */
+  .items-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-bottom: 12px; }
   .item-cell {
-    position: relative; background: var(--card); border-radius: var(--r-md);
-    aspect-ratio: 1; padding: 14px; cursor: pointer;
+    position: relative; background: var(--card); border-radius: 14px;
+    aspect-ratio: 1; padding: 8px; cursor: pointer;
     box-shadow: var(--shadow-card);
     border: 2px solid transparent;
     transition: border-color .15s ease;
+    min-width: 0;
   }
   .item-cell.sel { border-color: var(--ink); }
   .item-cell .ck {
@@ -49,7 +65,7 @@
 <div class="app">
 
   <div class="pagehead">
-    <button class="iconbtn" id="btnBack">‹</button>
+    <button class="iconbtn" id="btnBack"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5 8 12l6.5 7"/></svg></button>
     <span class="grow" style="display:flex;justify-content:center"><span class="progress" id="prog"></span></span>
     <span style="width:40px"></span>
   </div>
@@ -60,9 +76,9 @@
       <h1 class="h-display rise">你的性别是？</h1>
       <p class="h-sub rise d1">选择性别，以定制你的专属试衣模特</p>
       <div class="picks rise d2" id="pickGender">
-        <button class="pick" data-v="女性">♀ 女性</button>
-        <button class="pick" data-v="男性">♂ 男性</button>
-        <button class="pick" data-v="不愿透露">⊖ 不愿透露</button>
+        <button class="pick" data-v="女性"><i class="pi">♀</i>女性</button>
+        <button class="pick" data-v="男性"><i class="pi">♂</i>男性</button>
+        <button class="pick" data-v="不愿透露"><i class="pi">⊖</i>不愿透露</button>
       </div>
     </div>
     <div class="step-foot">
@@ -89,8 +105,8 @@
       <h1 class="h-display">你的服饰性别偏好是？</h1>
       <p class="h-sub">你可以任意选择自己感兴趣的类型，支持多选</p>
       <div class="picks" id="pickPref">
-        <button class="pick" data-v="女装">👗 女装</button>
-        <button class="pick" data-v="男装">👕 男装</button>
+        <button class="pick" data-v="女装"><i class="pi">👗</i>女装</button>
+        <button class="pick" data-v="男装"><i class="pi">👕</i>男装</button>
       </div>
     </div>
     <div class="step-foot">
@@ -181,7 +197,7 @@
     if (answers.pref.includes("女装")) g.add("f");
     if (answers.pref.includes("男装")) g.add("m");
     if (!g.size) { g.add("f"); g.add("m"); }
-    stepItems = ITEMS.filter(i => g.has(i.gender) && i.scene === "日常");
+    stepItems = ITEMS.filter(i => g.has(i.gender));   // 该性别全部单品（含连体裙）
     $("#itemsGrid").innerHTML = stepItems.map(it => `
       <div class="item-cell" data-id="${it.id}">
         ${itemImg(it)}

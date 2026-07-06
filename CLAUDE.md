@@ -43,6 +43,8 @@
 - **唯一的彩色**是粉→薄荷渐变 `--grad`，只准用在 AI 能力相关的元素上（`.ai-pill`）
 - 假 iOS 状态栏已移除（手机自带真状态栏，`renderStatusbar()` 是空函数勿删勿复用）；主 tab 页底部有 `renderTabbar('key')`
 - 虚拟模特只有 1 个默认款（`PRESET_MODELS`），不许加回多个预设；用户上传照片的模特不限数量
+- 默认模特图 = `assets/real/model-f.png` / `model-m.png`（按性别偏好选，`defaultModelSrc()`），缺图回退剪影
+- 我的页「我的模特」在用户没上传照片时显示大号添加引导框，不展示默认模特
 - 参考对标产品截图：`design-reference/wearwow/`，风格笔记：`design-reference/wearwow-style-notes.md`
 
 ## 页面清单与流程

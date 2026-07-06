@@ -105,10 +105,13 @@
   .dchip.on { background: #fff; color: var(--ink); }
   .dgrid {
     flex: 1; min-height: 0; overflow-y: auto;
+    overscroll-behavior: contain;        /* 滑到底不再把手势传给外层，避免"卡住滑不动" */
+    -webkit-overflow-scrolling: touch;
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
     padding: 14px var(--pad) calc(20px + env(safe-area-inset-bottom));
     align-content: start;
   }
+  .dgrid > * { min-width: 0; }
   .dgrid.pt { padding-top: 18px; }
   .dcell {
     background: #fff; border-radius: 14px;
@@ -133,7 +136,7 @@
 
   <div class="stage">
     <div class="stage-top">
-      <button class="iconbtn" onclick="history.length > 1 ? history.back() : location.href='home.html'">‹</button>
+      <button class="iconbtn" onclick="history.length > 1 ? history.back() : location.href='home.html'"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5 8 12l6.5 7"/></svg></button>
       <span class="grow"></span>
       <div class="model-switch" id="modelSwitch" title="切换模特"></div>
     </div>
@@ -212,8 +215,9 @@
       return;
     }
     wrap.innerHTML = `<img class="base" id="modelImg"
-        src="${m.dataUrl || "assets/ph/model.svg"}"
-        style="${m.dataUrl ? "border-radius:18px" : modelShapeCss(m)}" alt="试衣模特">` +
+        src="${m.dataUrl || defaultModelSrc()}"
+        onerror="this.onerror=null;this.src='assets/ph/model.svg'"
+        style="${m.dataUrl ? "border-radius:18px" : ""}" alt="试衣模特">` +
       wearing.map(id => {
         const it = itemById(id);
         if (!it) return "";
@@ -284,15 +288,12 @@
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
     const m = curModel();
-    const base = await loadImg(m.dataUrl || "assets/ph/model.svg");
+    let base;
+    try { base = await loadImg(m.dataUrl || defaultModelSrc()); }
+    catch { base = await loadImg("assets/ph/model.svg"); }
     const bw = base.width || 240, bh = base.height || 480;
     const scale = Math.min((W * .62) / bw, (H * .92) / bh);
-    let dw = bw * scale, dh = bh * scale;
-    /* 预设模特体型差异 */
-    const shape = m.dataUrl ? "" : m.shape;
-    if (shape === "tall") dh *= 1.08;
-    if (shape === "wide") dw *= 1.24;
-    if (shape === "petite") { dw *= .85; dh *= .85; }
+    const dw = bw * scale, dh = bh * scale;
     ctx.drawImage(base, (W - dw) / 2, H - dh, dw, dh);
 
     for (const id of wearing) {

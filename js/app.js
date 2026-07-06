@@ -165,6 +165,13 @@ function renderChips(container, list, onPick, active = 0) {
   }));
 }
 
+/* 默认虚拟模特图：按性别偏好选 assets/real/model-f.png 或 model-m.png，没图自动回退剪影 */
+function defaultModelSrc() {
+  const g = prefGenders();
+  const gender = (g.size === 1 && g.has("m")) ? "m" : "f";
+  return `assets/real/model-${gender}.png`;
+}
+
 /* 搭配整图：找 assets/real/<搭配id>.png → .jpg → 都没有则移除自己（露出下面的拼贴） */
 function outfitCover(id) {
   return `<img class="ocover" src="assets/real/${id}.png" alt="" loading="lazy"

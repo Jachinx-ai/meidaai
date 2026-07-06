@@ -179,8 +179,28 @@
   function renderModels() {
     const s = Store.get();
     const cur = s.models.find(m => m.id === s.curModel) || s.models[0];
+    const mine = s.models.filter(m => m.dataUrl);
+
+    /* 没上传过自己的照片：大卡片 = 引导上传的添加框 */
+    if (!mine.length) {
+      $("#modelCard").innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+                    width:100%;height:100%;cursor:pointer;border:2px dashed #cfcfcc;border-radius:var(--r-xl)"
+             onclick="location.href='create-model.html'">
+          <span style="width:56px;height:56px;border-radius:50%;background:var(--ink);color:#fff;
+                       display:flex;align-items:center;justify-content:center;font-size:26px">＋</span>
+          <span style="font-size:16px;font-weight:700">上传照片，创建我的模特</span>
+          <span style="font-size:13px;color:var(--muted)">用自己的照片试穿衣橱里的衣服</span>
+        </div>`;
+      $("#modelName").textContent = "";
+      $("#modelStrip").innerHTML = "";
+      return;
+    }
+
     $("#modelCard").innerHTML = `
-      ${cur.dataUrl ? `<img src="${cur.dataUrl}">` : `<img src="assets/ph/model.svg" style="opacity:.9;${modelShapeCss(cur)}">`}
+      ${cur.dataUrl
+        ? `<img src="${cur.dataUrl}">`
+        : `<img src="${defaultModelSrc()}" onerror="this.onerror=null;this.src='assets/ph/model.svg'" style="opacity:.95">`}
       ${cur.dataUrl ? `<button class="del" id="btnDelModel">🗑</button>` : ""}`;
     $("#modelName").textContent = cur.name;
     $("#modelStrip").innerHTML = `
@@ -189,7 +209,7 @@
         <div class="mthumb ${m.id === cur.id ? "on" : ""}" data-m="${m.id}" title="${m.name}">
           ${m.dataUrl
             ? `<img src="${m.dataUrl}">`
-            : `<img src="assets/ph/model.svg" style="object-fit:contain;padding:8px 0;${modelShapeCss(m)}">`}
+            : `<img src="${defaultModelSrc()}" onerror="this.onerror=null;this.src='assets/ph/model.svg'" style="object-fit:cover">`}
         </div>`).join("")}`;
     $$("[data-m]").forEach(t => t.addEventListener("click", () => {
       Store.set({ curModel: t.dataset.m });

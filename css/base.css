@@ -41,6 +41,7 @@ body {
   /* 手机：最底层就是淡薄荷，Safari 状态栏区域取的正是这层颜色 */
   background: #e9f5ee;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;   /* 禁止页面整体左右滑动 */
 }
 /* 桌面：页面外围恢复灰色衬托手机画幅 */
 @media (min-width: 431px) {
@@ -303,7 +304,12 @@ body {
 .px { padding-left: var(--pad); padding-right: var(--pad); }
 .grow { flex: 1; }
 .row { display: flex; align-items: center; gap: 12px; }
-.scroll-body { flex: 1; overflow-y: auto; }
+.scroll-body {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
 .hidden { display: none !important; }
 
 /* 页面载入编排动画 */

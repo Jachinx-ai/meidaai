@@ -138,7 +138,7 @@
 <div class="app">
 
   <div class="pagehead">
-    <button class="iconbtn" onclick="history.length > 1 ? history.back() : location.href='profile.html'">‹</button>
+    <button class="iconbtn" onclick="history.length > 1 ? history.back() : location.href='profile.html'"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5 8 12l6.5 7"/></svg></button>
     <div class="seg grow">
       <button data-t="preset">预设模特</button>
       <button class="on" data-t="mine">我的照片</button>
@@ -216,7 +216,7 @@
     $("#presetGrid").innerHTML = PRESET_MODELS.map(p => `
       <div class="preset ${s.curModel === p.id ? "on" : ""}" data-p="${p.id}" data-nm="${p.name}">
         <span class="nm">${p.name}</span>
-        <img src="assets/ph/model.svg" style="${modelShapeCss(p)}">
+        <img src="${defaultModelSrc()}" onerror="this.onerror=null;this.src='assets/ph/model.svg'">
       </div>`).join("");
     $$("[data-p]").forEach(c => c.addEventListener("click", () => {
       Store.set({ curModel: c.dataset.p });
