@@ -289,6 +289,15 @@ body {
   display: flex; align-items: center; justify-content: center;
 }
 
+/* 搭配整图覆盖层（放了真图就盖住拼贴，没图自动移除） */
+.ocover {
+  position: absolute; inset: 0; z-index: 1;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: var(--r-md);
+  background: #fff;
+}
+
 /* ---------- 通用工具 ---------- */
 .px { padding-left: var(--pad); padding-right: var(--pad); }
 .grow { flex: 1; }

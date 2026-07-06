@@ -19,7 +19,8 @@
     box-shadow: var(--shadow-card);
     padding: 14px; position: relative; cursor: pointer;
   }
-  .collage { display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px; align-items: center; min-height: 128px; }
+  .collage { position: relative; display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px; align-items: center; min-height: 128px; }
+  .collage .ocover { aspect-ratio: auto; object-fit: cover; height: 100%; }
   .collage img { width: 100%; aspect-ratio: 1; object-fit: contain; }
   .collage .side { display: flex; flex-direction: column; gap: 2px; }
   .collage .side img { aspect-ratio: 1.1; }
@@ -77,6 +78,7 @@
         <div class="collage">
           ${itemImg(its[0])}
           <div class="side">${its.slice(1, 3).map(i => itemImg(i)).join("")}</div>
+          ${outfitCover(o.id)}
         </div>
         <div class="ofoot">
           <button class="star ${favs.includes(o.id) ? "on" : ""}" data-fav="${o.id}">★</button>

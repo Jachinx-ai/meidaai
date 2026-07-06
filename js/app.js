@@ -146,6 +146,16 @@ function renderChips(container, list, onPick, active = 0) {
   }));
 }
 
+/* 搭配整图：找 assets/real/<搭配id>.png → .jpg → 都没有则移除自己（露出下面的拼贴） */
+function outfitCover(id) {
+  return `<img class="ocover" src="assets/real/${id}.png" alt=""
+    onerror="coverFallback(this)" data-step="1">`;
+}
+function coverFallback(el) {
+  if (el.dataset.step === "1") { el.dataset.step = "2"; el.src = el.src.replace(/\.png$/, ".jpg"); }
+  else el.remove();
+}
+
 /* 预设模特剪影的体型差异（CSS transform） */
 function modelShapeCss(m) {
   return {
