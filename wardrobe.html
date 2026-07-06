@@ -132,9 +132,12 @@
   let delTarget = null;
   $("#btnDelOk").addEventListener("click", () => {
     const s = Store.get();
+    const isSystem = ITEMS.some(i => i.id === delTarget);
     Store.set({
       wardrobe: s.wardrobe.filter(id => id !== delTarget),
       customItems: s.customItems.filter(c => c.id !== delTarget),
+      /* 系统单品记入删除名单 → 含它的搭配全站同步隐藏 */
+      deletedItems: isSystem ? [...s.deletedItems, delTarget] : s.deletedItems,
     });
     closeModal("modalDel");
     toast("已删除，相关搭配已同步移除");

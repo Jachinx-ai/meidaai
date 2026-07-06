@@ -9,8 +9,9 @@ const Store = {
   _cache: null,
   defaults() {
     return {
-      wardrobe: ITEMS.map(i => i.id),   // 衣橱里的单品 id
+      wardrobe: [...STARTER_WARDROBE],   // 衣橱里的单品 id（新用户=基础款）
       customItems: [],                   // 用户上传的单品 {id,name,cat,dataUrl}
+      deletedItems: [],                  // 被删除的系统单品 id（其所在搭配全站隐藏）
       favorites: [],                     // 收藏的搭配 id
       history: [],                       // 试衣历史 {id,outfitId,items,scene,time}
       models: PRESET_MODELS.map(p => ({ ...p, dataUrl: null })),
@@ -31,6 +32,13 @@ const Store = {
       if (!this._cache.models.find(m => m.id === this._cache.curModel)) {
         this._cache.curModel = "m1";
       }
+      /* 迁移：旧演示数据的单品/搭配 id 已随素材库更换，清掉失效引用 */
+      const validItem = new Set(ITEMS.map(i => i.id));
+      this._cache.wardrobe = (this._cache.wardrobe || []).filter(id => validItem.has(id));
+      if (!this._cache.wardrobe.length) this._cache.wardrobe = [...STARTER_WARDROBE];
+      const validOutfit = new Set(OUTFITS.map(o => o.id));
+      this._cache.favorites = (this._cache.favorites || []).filter(id => validOutfit.has(id));
+      if (!Array.isArray(this._cache.deletedItems)) this._cache.deletedItems = [];
     }
     return this._cache;
   },
@@ -55,15 +63,26 @@ function inWardrobe(id) {
   const s = Store.get();
   return s.wardrobe.includes(id) || s.customItems.some(c => c.id === id);
 }
-/* 搭配里只要有一件衣服被删，该搭配整套不再展示 */
+/* 引导问卷选的服饰性别偏好 → 展示哪些性别的搭配（没选=全部） */
+function prefGenders() {
+  const pref = Store.get().profile.pref || [];
+  const g = new Set();
+  if (pref.includes("女装")) g.add("f");
+  if (pref.includes("男装")) g.add("m");
+  return g.size ? g : new Set(["f", "m"]);
+}
+/* 可展示的搭配：性别符合偏好 + 不含被删除的衣服（删衣服→相关搭配全站隐藏） */
 function availableOutfits() {
-  return OUTFITS.filter(o => o.items.every(inWardrobe));
+  const genders = prefGenders();
+  const deleted = new Set(Store.get().deletedItems);
+  return OUTFITS.filter(o =>
+    genders.has(o.gender) && !o.items.some(id => deleted.has(id)));
 }
 
 /* 单品 <img>：优先找 assets/real/<id>.png → .jpg → 占位剪影 */
 function itemImg(item, cls = "ph-img") {
-  if (item.dataUrl) return `<img class="${cls}" src="${item.dataUrl}" alt="${item.name}">`;
-  return `<img class="${cls}" src="assets/real/${item.id}.png" alt="${item.name}"
+  if (item.dataUrl) return `<img class="${cls}" src="${item.dataUrl}" alt="${item.name}" loading="lazy">`;
+  return `<img class="${cls}" src="assets/real/${item.id}.png" alt="${item.name}" loading="lazy"
     onerror="phFallback(this,'${item.ph}')">`;
 }
 function phFallback(el, ph) {
@@ -148,7 +167,8 @@ function renderChips(container, list, onPick, active = 0) {
 
 /* 搭配整图：找 assets/real/<搭配id>.png → .jpg → 都没有则移除自己（露出下面的拼贴） */
 function outfitCover(id) {
-  return `<img class="ocover" src="assets/real/${id}.png" alt=""
+  return `<img class="ocover" src="assets/real/${id}.png" alt="" loading="lazy"
+    onload="this.style.visibility='visible'"
     onerror="coverFallback(this)" data-step="1">`;
 }
 function coverFallback(el) {

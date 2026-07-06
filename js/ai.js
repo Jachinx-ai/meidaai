@@ -80,6 +80,7 @@ const AI = {
       wardrobe: wardrobe.map(i => ({
         id: i.id, category: i.cat, custom: !!i.dataUrl,
         name: i.name || "", labels: i.labels || null,
+        gender: i.gender || null,
       })),
       around,
     };

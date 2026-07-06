@@ -70,8 +70,12 @@ profile.html        我的：收藏（与首页同款卡片，星标为已选中
 
 ## 数据与状态
 
-- 演示数据在 `js/data.js`：`ITEMS`（14件单品）、`OUTFITS`（8套搭配）、`SCENES`
+- `js/data.js` **由脚本自动生成，禁止手改**（`node server/tools/build-data.js` 扫描 assets/real 素材生成）：
+  `ITEMS` 230件（含 AI 标签/性别/场景）、`OUTFITS` 79套（含 gender）、`STARTER_WARDROBE` 新用户默认衣橱
+- 素材命名规范见根目录 `素材命名规范.md`；新素材入库流程：放图 → tag-items.js 打标签 → build-data.js 重新生成
 - 衣物分类固定为 `CATS = 全部/上衣/下装/鞋子/连体裙`，全站统一，不许增删
+- 搭配展示按引导问卷的服饰性别偏好过滤（`prefGenders()`/`availableOutfits()` in js/app.js）；
+  删除系统单品记入 `deletedItems`，含它的搭配全站隐藏
 - 运行时状态存 localStorage（key `aiwd-state`），通过 `Store.get()/Store.set()` 读写：
   衣橱、收藏、试衣历史、用户上传的单品和模特照片、引导问卷答案
 - 图片机制：单品图先找 `assets/real/<id>.png` → `.jpg` → 回退到 `assets/ph/<剪影>.svg` 占位图。

@@ -296,6 +296,7 @@ body {
   object-fit: cover;
   border-radius: var(--r-md);
   background: #fff;
+  visibility: hidden;   /* 加载成功才显示（onload），避免白底挡住拼贴 */
 }
 
 /* ---------- 通用工具 ---------- */

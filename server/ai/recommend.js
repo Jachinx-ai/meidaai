@@ -16,10 +16,13 @@ const { recommendPrompt } = require("./prompts");
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
-/* 规则搭配（兜底）：同分类优先用户上传的衣服 */
+/* 规则搭配（兜底）：同分类优先用户上传的衣服，系统款不跨性别混搭 */
 function ruleMatch(wardrobe, aroundId) {
+  const anchor = aroundId ? wardrobe.find((i) => i.id === aroundId) : null;
+  const gender = anchor?.gender || pick(wardrobe)?.gender || null;
   const byCat = (cat, excludeId) => {
-    const pool = wardrobe.filter((i) => i.category === cat && i.id !== excludeId);
+    const pool = wardrobe.filter((i) =>
+      i.category === cat && i.id !== excludeId && (!i.gender || !gender || i.gender === gender));
     const mine = pool.filter((i) => i.custom);
     const list = mine.length ? mine : pool;
     return list.length ? pick(list).id : null;

@@ -132,6 +132,7 @@
   function goStep(n) {
     cur = n;
     $$(".step").forEach(s => s.classList.toggle("on", +s.dataset.step === n));
+    if (n === 4) renderItemsGrid();   // 按偏好动态渲染单品
     renderProg();
   }
   $("#btnBack").addEventListener("click", () => {
@@ -172,29 +173,37 @@
     $("[data-next]", p.closest(".step")).disabled = answers.pref.length === 0;
   }));
 
-  /* 步骤4：选单品 */
+  /* 步骤4：选单品（按第3步的性别偏好展示日常基础款） */
   const picked = new Set();
-  $("#itemsGrid").innerHTML = ITEMS.map(it => `
-    <div class="item-cell" data-id="${it.id}">
-      ${itemImg(it)}
-      <span class="ck"></span>
-    </div>`).join("");
+  let stepItems = [];
+  function renderItemsGrid() {
+    const g = new Set();
+    if (answers.pref.includes("女装")) g.add("f");
+    if (answers.pref.includes("男装")) g.add("m");
+    if (!g.size) { g.add("f"); g.add("m"); }
+    stepItems = ITEMS.filter(i => g.has(i.gender) && i.scene === "日常");
+    $("#itemsGrid").innerHTML = stepItems.map(it => `
+      <div class="item-cell" data-id="${it.id}">
+        ${itemImg(it)}
+        <span class="ck"></span>
+      </div>`).join("");
+    $$(".item-cell").forEach(c => c.addEventListener("click", () => {
+      const id = c.dataset.id;
+      picked.has(id) ? picked.delete(id) : picked.add(id);
+      c.classList.toggle("sel", picked.has(id));
+      refreshSel();
+    }));
+  }
   function refreshSel() {
     $("#selCount").textContent = `已选 ${picked.size} 件`;
     const btn = $("#btnFinish");
     btn.disabled = picked.size === 0;
     btn.textContent = picked.size === 0 ? "请选择你已有的衣服" : `加入衣橱（${picked.size} 件）`;
   }
-  $$(".item-cell").forEach(c => c.addEventListener("click", () => {
-    const id = c.dataset.id;
-    picked.has(id) ? picked.delete(id) : picked.add(id);
-    c.classList.toggle("sel", picked.has(id));
-    refreshSel();
-  }));
   $("#btnAll").addEventListener("click", () => {
-    const all = picked.size === ITEMS.length;
+    const all = picked.size === stepItems.length;
     picked.clear();
-    if (!all) ITEMS.forEach(i => picked.add(i.id));
+    if (!all) stepItems.forEach(i => picked.add(i.id));
     $$(".item-cell").forEach(c => c.classList.toggle("sel", picked.has(c.dataset.id)));
     refreshSel();
   });
