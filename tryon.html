@@ -18,10 +18,10 @@
     background: linear-gradient(180deg, #f2f2ef 0%, #e6e6e2 100%);
     overflow: hidden;
   }
-  .model-wrap { position: relative; height: 92%; display: flex; align-items: flex-end; justify-content: center; }
-  .model-wrap img.base { height: 100%; width: auto; max-width: 62vw; object-fit: contain; display: block; }
+  .model-wrap { position: relative; height: 96%; display: flex; align-items: flex-end; justify-content: center; }
+  .model-wrap img.base { height: 100%; width: auto; max-width: 88vw; object-fit: contain; display: block; }
   /* AI 生成的整图结果（真模型接入后） */
-  .model-wrap img.gen { height: 100%; width: auto; max-width: 62vw; object-fit: contain; display: block; border-radius: 18px; }
+  .model-wrap img.gen { height: 100%; width: auto; max-width: 88vw; object-fit: contain; display: block; border-radius: 18px; }
   /* 本地叠图合成：按分类定位 */
   .worn {
     position: absolute; left: 50%; transform: translateX(-50%);
@@ -119,7 +119,12 @@
     cursor: pointer; position: relative;
     border: 2px solid transparent;
   }
-  .dcell.on { border-color: #9be8bd; }
+  .dcell.on {
+    border: 3px solid transparent;
+    background-image: linear-gradient(#fff, #fff), var(--grad);   /* 渐变描边，加粗更醒目 */
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
   .dcell img { width: 100%; height: 100%; object-fit: contain; }
   .dcell.add {
     background: rgba(255,255,255,.08);
@@ -165,7 +170,8 @@
     </div>
 
     <div id="paneOutfit" class="hidden" style="flex-direction:column;flex:1;min-height:0">
-      <div class="dgrid pt" id="outfitGrid"></div>
+      <div class="dchips" id="sceneChipsD"></div>
+      <div class="dgrid" id="outfitGrid"></div>
     </div>
   </div>
 </div>
@@ -318,11 +324,20 @@
   }
   $("#modelSwitch").addEventListener("click", () => location.href = "create-model.html");
 
-  /* ---------- 穿搭 tab ---------- */
+  /* ---------- 穿搭 tab（场景筛选；被删衣服的搭配不再展示） ---------- */
+  let dScene = "全部";
+  function renderSceneChipsD() {
+    const scenes = ["全部", "通勤", "约会", "旅行", "日常"];
+    $("#sceneChipsD").innerHTML = scenes.map(c =>
+      `<button class="dchip ${c === dScene ? "on" : ""}" data-c="${c}">${c}</button>`).join("");
+    $$("#sceneChipsD .dchip").forEach(c => c.addEventListener("click", () => {
+      dScene = c.dataset.c; renderSceneChipsD(); renderOutfitGrid();
+    }));
+  }
   function renderOutfitGrid() {
     $("#outfitGrid").innerHTML =
       `<div class="dcell add" data-add>＋</div>` +
-      availableOutfits().map(o => `
+      availableOutfits().filter(o => dScene === "全部" || o.scene === dScene).map(o => `
         <div class="dcell ${o.id === curOutfitId ? "on" : ""}" data-o="${o.id}">
           <div class="combo">${o.items.slice(0, 4).map(id => itemImg(itemById(id))).join("")}</div>
         </div>`).join("");
@@ -461,7 +476,7 @@
   function renderAll() {
     renderStage(); renderOutfitGrid(); renderMineGrid(); renderModelBadge(); syncFav(); syncAIBtn();
   }
-  renderCatChips(); renderAll();
+  renderCatChips(); renderSceneChipsD(); renderAll();
   if (!aiAround) applyTryon();
 </script>
 </body>
