@@ -32,6 +32,8 @@
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body { height: 100%; }
+/* 手机上下拉回弹露出的区域也保持与顶部渐变同色系 */
+html { background: #f0f6f1; }
 
 body {
   font-family: var(--font-body);

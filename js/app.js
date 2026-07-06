@@ -75,6 +75,15 @@ function phFallback(el, ph) {
 /* 假 iOS 状态栏已移除（手机自带真状态栏）；保留空函数兼容各页面的调用 */
 function renderStatusbar() {}
 
+/* 手机浏览器状态栏/工具条颜色与页面顶部渐变统一
+   （页面 head 里自带 theme-color 时以页面的为准，如添加衣服的深色页） */
+if (!document.querySelector('meta[name="theme-color"]')) {
+  const themeMeta = document.createElement("meta");
+  themeMeta.name = "theme-color";
+  themeMeta.content = "#f0f6f1";
+  document.head.appendChild(themeMeta);
+}
+
 /* ---------- 底部导航 ---------- */
 const TABS = [
   { key: "home",     label: "首页",     href: "home.html",
