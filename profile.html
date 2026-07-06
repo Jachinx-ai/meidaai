@@ -104,7 +104,7 @@
       <div class="usub" id="usub"></div>
     </div>
     <span class="grow"></span>
-    <button class="iconbtn rise d1" onclick="toast('设置功能即将上线')">⚙</button>
+    <button class="iconbtn rise d1" onclick="openModal('modalReset')">⚙</button>
   </div>
 
   <div class="seg rise d2">
@@ -122,6 +122,18 @@
       <div class="model-name" id="modelName"></div>
     </div>
     <div class="model-strip" id="modelStrip"></div>
+  </div>
+</div>
+
+<!-- 设置：重置演示数据 -->
+<div class="modal-mask" id="modalReset">
+  <div class="modal">
+    <h3>重置演示数据</h3>
+    <p>将清空衣橱、收藏、试衣历史、上传的照片，回到全新用户状态。</p>
+    <div style="display:flex;gap:12px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modalReset')">取消</button>
+      <button class="btn btn-primary" style="flex:1" onclick="resetDemoData()">重置</button>
+    </div>
   </div>
 </div>
 

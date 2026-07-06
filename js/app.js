@@ -3,6 +3,18 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
+/* 任意页面 URL 带 ?reset=1 → 清空演示数据回到全新状态 */
+if (new URLSearchParams(location.search).get("reset") === "1") {
+  localStorage.removeItem("aiwd-state");
+  location.replace("login.html");
+}
+
+/* 重置演示数据（我的页设置入口调用） */
+function resetDemoData() {
+  localStorage.removeItem("aiwd-state");
+  location.href = "login.html";
+}
+
 /* ---------- 本地状态（localStorage） ---------- */
 const Store = {
   KEY: "aiwd-state",
