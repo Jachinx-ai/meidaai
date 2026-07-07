@@ -151,11 +151,25 @@
     if (n === 4) renderItemsGrid();   // 按偏好动态渲染单品
     renderProg();
   }
+  /* 步骤导航防抖：快速连点会跨步误触（如双击"下一步"直接命中下一屏按钮），350ms 内只认第一次 */
+  let lastNav = 0;
+  function navOk() { if (Date.now() - lastNav < 350) return false; lastNav = Date.now(); return true; }
   $("#btnBack").addEventListener("click", () => {
+    if (!navOk()) return;
     if (cur === 1) history.back(); else goStep(cur - 1);
   });
-  $$("[data-next]").forEach(b => b.addEventListener("click", () => goStep(cur + 1)));
-  $$("[data-next-skip]").forEach(b => b.addEventListener("click", () => goStep(cur + 1)));
+  $$("[data-next]").forEach(b => b.addEventListener("click", () => {
+    if (!navOk()) return;
+    goStep(cur + 1);
+  }));
+  $$("[data-next-skip]").forEach(b => b.addEventListener("click", () => {
+    if (!navOk()) return;
+    /* 跳过=不填职业：清掉误点的职业选择，返回重进时不再高亮 */
+    answers.job = "";
+    $$("#jobGroups .pick").forEach(x => x.classList.remove("active"));
+    $('.step[data-step="2"] [data-next]').disabled = true;
+    goStep(cur + 1);
+  }));
 
   /* 单选组 */
   function singlePick(rootSel, key) {
@@ -231,6 +245,7 @@
     refreshSel();
   });
   $("#btnFinish").addEventListener("click", () => {
+    if (!navOk()) return;
     Store.set({
       wardrobe: [...picked],
       profile: answers,
