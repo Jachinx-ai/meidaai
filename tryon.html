@@ -235,6 +235,11 @@
         const col = (X, Y) => { const d = x.getImageData(X, Y, 1, 1).data; return `rgb(${d[0]},${d[1]},${d[2]})`; };
         stageCols = [col(3, 3), col(3, im.height - 4)];
         $(".stage").style.background = `linear-gradient(180deg, ${stageCols[0]} 0%, ${stageCols[1]} 100%)`;
+        /* 页面外围与手机状态栏也跟着照片同色，整页无缝 */
+        $(".app").style.background = stageCols[0];
+        document.body.style.background = stageCols[0];
+        const tm = document.querySelector('meta[name="theme-color"]');
+        if (tm) tm.content = stageCols[0];
       } catch {}
     };
     im.src = src;
@@ -245,7 +250,11 @@
     const m = curModel();
     const wrap = $("#modelWrap");
     if (genImage) {
-      wrap.innerHTML = `<img class="gen" src="${genImage}" alt="试穿效果">`;
+      /* 试穿模型不支持鞋子：选中的鞋子叠加显示在生成图上 */
+      const shoes = wearing.map(itemById).filter(it => it && it.cat === "鞋子");
+      wrap.innerHTML = `<img class="gen" src="${genImage}" alt="试穿效果">` +
+        shoes.map(it => `<img class="worn cat-鞋子" src="${itemSrc(it)}"
+          onerror="phFallback(this,'${it.ph}')" alt="${it.name}">`).join("");
       syncStageBg(genImage);
       return;
     }
@@ -339,13 +348,10 @@
     const key = [...wearing].sort().join(",");
     if (last && (last.items || []).slice().sort().join(",") === key) return;  // 连续重复不存
 
-    let image = genImage;
-    if (image) {
-      /* 生成图较大，压小再进 localStorage，防超限 */
-      try { image = await compressImage(image, 480, 0.62); } catch {}
-    } else {
-      try { image = await composeSnapshot(); } catch { image = null; }
-    }
+    /* 有真试穿生成图：生成图+鞋子画进快照（顺带压小防超限）；没有则整套叠图合成 */
+    let image = null;
+    try { image = genImage ? await composeSnapshot(genImage, ["鞋子"]) : await composeSnapshot(); }
+    catch { image = null; }
     const o = OUTFITS.find(x => x.id === curOutfitId);
     Store.set({
       history: [{
@@ -371,7 +377,8 @@
       im.src = src;
     });
   }
-  async function composeSnapshot() {
+  /* baseSrc=底图（默认当前模特），cats=只画这些分类的衣服（默认全画） */
+  async function composeSnapshot(baseSrc = null, cats = null) {
     const W = 480, H = 720;
     const canvas = document.createElement("canvas");
     canvas.width = W; canvas.height = H;
@@ -383,7 +390,7 @@
 
     const m = curModel();
     let base;
-    try { base = await loadImg(m.dataUrl || defaultModelSrc()); }
+    try { base = await loadImg(baseSrc || m.dataUrl || defaultModelSrc()); }
     catch { base = await loadImg("assets/ph/model.svg"); }
     const bw = base.width || 240, bh = base.height || 480;
     const scale = Math.min((W * .62) / bw, (H * .92) / bh);
@@ -392,6 +399,7 @@
 
     for (const id of wearing) {
       const it = itemById(id);
+      if (cats && !(it && cats.includes(it.cat))) continue;
       const pos = it && CAT_POS[it.cat];
       if (!pos) continue;
       let im;
