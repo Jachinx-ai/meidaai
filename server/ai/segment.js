@@ -21,10 +21,11 @@
    ============================================================ */
 
 const { OPENROUTER_API_KEY, MODELS } = require("./config");
-const { chat, generateImage, imageMessage, parseJson } = require("./openrouter");
+const { chat, generateImage, generateImageFromText, imageMessage, parseJson } = require("./openrouter");
 const {
   DETECT_PROMPT,
   flatImagePrompt,
+  flatTextImagePrompt,
   flatQcPrompt,
   repairFlatImagePrompt,
   TAG_PROMPT,
@@ -59,18 +60,24 @@ async function checkFlat(image, category) {
 
 async function generateCleanFlat(reqImage, detected) {
   const category = detected.category || "服装";
-  const description = detected.description || "";
+  const description = detected.flat_description || detected.description || "";
 
-  const first = await generateImage(MODELS.flatImage, flatImagePrompt(category, description), reqImage);
+  let first;
+  try {
+    /* 先按视觉识别出的商品描述生成，避免把手机截图界面一起临摹进去 */
+    first = await generateImageFromText(MODELS.flatImage, flatTextImagePrompt(category, description));
+  } catch (e) {
+    console.warn(`文字平铺图生成失败（${category}），改用参考图生成:`, e.message);
+    first = await generateImage(MODELS.flatImage, flatImagePrompt(category, description), reqImage);
+  }
   const qc = await checkFlat(first, category);
   if (qc.pass) return first;
 
   console.warn(`平铺图质检不通过（${category}），重试生成:`, qc.reason || "未知原因");
   try {
-    const retry = await generateImage(
+    const retry = await generateImageFromText(
       MODELS.flatImage,
-      repairFlatImagePrompt(category, description, qc.reason),
-      reqImage
+      repairFlatImagePrompt(category, description, qc.reason)
     );
     const retryQc = await checkFlat(retry, category);
     if (!retryQc.pass) {
@@ -95,7 +102,9 @@ module.exports = async function segment(req) {
   let detected = [];
   try {
     const text = await chat(MODELS.vision, imageMessage(DETECT_PROMPT, req.image), { timeoutMs: 60000 });
-    detected = (parseJson(text).items || []).slice(0, 3);   // 最多处理3件，控制耗时
+    detected = (parseJson(text).items || [])
+      .filter((i) => ["上衣", "下装", "鞋子", "连体裙"].includes(i.category))
+      .slice(0, 3);   // 最多处理3件，控制耗时
   } catch (e) {
     console.warn("穿着识别失败:", e.message);
   }
