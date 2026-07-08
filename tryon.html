@@ -251,11 +251,8 @@
     const m = curModel();
     const wrap = $("#modelWrap");
     if (genImage) {
-      /* 试穿模型不支持鞋子：选中的鞋子叠加显示在生成图上 */
-      const shoes = wearing.map(itemById).filter(it => it && it.cat === "鞋子");
-      wrap.innerHTML = `<img class="gen" src="${genImage}" alt="试穿效果">` +
-        shoes.map(it => `<img class="worn cat-鞋子" src="${itemSrc(it)}"
-          onerror="phFallback(this,'${it.ph}')" alt="${it.name}">`).join("");
+      /* 生图模型已把鞋子一起生成，直接展示整图，不再前端叠鞋 */
+      wrap.innerHTML = `<img class="gen" src="${genImage}" alt="试穿效果">`;
       syncStageBg(genImage);
       return;
     }
@@ -316,10 +313,8 @@
   async function doTryon() {
     const seq = ++tryonSeq;
     const m = curModel();
-    /* 缓存 key 不含鞋子：模型生成只用上装+下装（鞋子是前端叠显的），
-       只换鞋时直接命中缓存，不再为一张一模一样的图重复计费 */
-    const genItems = wearing.filter(id => itemById(id)?.cat !== "鞋子");
-    const key = (m.id || "m0") + "|" + [...genItems].sort().join(",");
+    /* 缓存 key 含全部单品（含鞋子）：生图模型把鞋子也一起生成，换鞋会改变结果图，需重新生成 */
+    const key = (m.id || "m0") + "|" + [...wearing].sort().join(",");
     let img;
     if (genCache.has(key)) {
       img = genCache.get(key);
@@ -352,9 +347,9 @@
     const key = [...wearing].sort().join(",");
     if (last && (last.items || []).slice().sort().join(",") === key) return;  // 连续重复不存
 
-    /* 有真试穿生成图：生成图+鞋子画进快照（顺带压小防超限）；没有则整套叠图合成 */
+    /* 有真试穿生成图：整图已含鞋子，直接压小存快照；没有则整套叠图合成 */
     let image = null;
-    try { image = genImage ? await composeSnapshot(genImage, ["鞋子"]) : await composeSnapshot(); }
+    try { image = genImage ? await compressImage(genImage, 480, 0.62) : await composeSnapshot(); }
     catch { image = null; }
     const o = OUTFITS.find(x => x.id === curOutfitId);
     Store.set({
