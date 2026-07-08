@@ -316,7 +316,10 @@
   async function doTryon() {
     const seq = ++tryonSeq;
     const m = curModel();
-    const key = (m.id || "m0") + "|" + [...wearing].sort().join(",");
+    /* 缓存 key 不含鞋子：模型生成只用上装+下装（鞋子是前端叠显的），
+       只换鞋时直接命中缓存，不再为一张一模一样的图重复计费 */
+    const genItems = wearing.filter(id => itemById(id)?.cat !== "鞋子");
+    const key = (m.id || "m0") + "|" + [...genItems].sort().join(",");
     let img;
     if (genCache.has(key)) {
       img = genCache.get(key);
