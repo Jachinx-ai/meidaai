@@ -57,6 +57,12 @@
   .match-pill:active { background: var(--fill-2); }
 
   .empty { text-align: center; color: var(--muted); padding: 70px 40px; font-size: 15px; line-height: 2; }
+
+  /* AI 识别中占位卡（上传后顶在网格最前，识别完成原地换成新单品） */
+  .icard.scan { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 212px; cursor: default; }
+  .scan-ring { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--fill); border-top-color: var(--ink); animation: spin .9s linear infinite; }
+  .icard.scan .ai-pill { padding: 8px 14px; font-size: 12.5px; font-weight: 700; color: var(--ink-2); }
+  @keyframes spin { to { transform: rotate(1turn); } }
 </style>
 </head>
 <body>
@@ -74,7 +80,7 @@
 <div class="modal-mask" id="modalDel">
   <div class="modal">
     <h3>删除衣服</h3>
-    <p>删除后，和该衣服相关的搭配也将同步删除。</p>
+    <p id="delMsg">删除后，和该衣服相关的搭配也将同步删除。</p>
     <div style="display:flex;gap:12px">
       <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modalDel')">取消</button>
       <button class="btn btn-primary" style="flex:1" id="btnDelOk">确定</button>
@@ -90,6 +96,7 @@
   renderTabbar("wardrobe");
 
   let cat = "全部";
+  let scanning = false;   /* 上传后 AI 识别中：网格最前显示占位卡 */
   function renderCats() {
     const items = wardrobeItems();
     $("#catbar").innerHTML = CATS.map(c => {
@@ -111,7 +118,12 @@
 
   function renderItems() {
     const list = wardrobeItems().filter(i => cat === "全部" || i.cat === cat);
-    $("#itemGrid").innerHTML = list.length ? list.map(it => `
+    const scanCard = scanning ? `
+      <div class="icard scan">
+        <div class="scan-ring"></div>
+        <span class="ai-pill">AI 识别整理中…</span>
+      </div>` : "";
+    $("#itemGrid").innerHTML = (list.length || scanning) ? scanCard + list.map(it => `
       <div class="icard" data-go="${it.id}">
         <button class="del" data-del="${it.id}">🗑</button>
         <div class="imgwrap">${it.dataUrl ? `<img src="${it.dataUrl}">` : itemImg(it)}</div>
@@ -124,6 +136,10 @@
     $$("[data-del]").forEach(b => b.addEventListener("click", e => {
       e.stopPropagation();
       delTarget = b.dataset.del;
+      /* 系统衣服会连带隐藏搭配，自己上传的不影响任何搭配，文案分开说 */
+      $("#delMsg").textContent = ITEMS.some(i => i.id === delTarget)
+        ? "删除后，含这件衣服的搭配也将同步隐藏。"
+        : "确定删除这件自己上传的衣服吗？";
       openModal("modalDel");
     }));
   }
@@ -140,7 +156,7 @@
       deletedItems: isSystem ? [...s.deletedItems, delTarget] : s.deletedItems,
     });
     closeModal("modalDel");
-    toast("已删除，相关搭配已同步移除");
+    toast(isSystem ? "已删除，相关搭配已同步移除" : "已删除");
     renderCats(); renderItems();
   });
 
@@ -149,29 +165,37 @@
   /* 从添加衣服页带回的上传：AI 识别/平铺/打标签，多件自动拆分后入橱 */
   const pending = Store.get().pendingUpload;
   if (pending) {
+    /* 先清掉再识别：识别期间离开页面再回来，不会重复触发付费识别 */
+    Store.set({ pendingUpload: null });
+    scanning = true;
+    renderItems();
     toast("上传成功，AI 正在识别整理…");
     (async () => {
-      let newItems;
-      if (pending === "ph") {
-        newItems = [{ id: "c" + Date.now(), name: "我的单品", cat: "上衣", ph: "tee", dataUrl: null }];
-      } else {
-        const r = await AI.segment(pending);
-        const list = (r.items && r.items.length) ? r.items : [{ image: r.image || pending, category: "上衣" }];
-        newItems = list.map((d, i) => ({
-          id: "c" + Date.now() + "_" + i,
-          name: d.name || "我的单品",
-          cat: ["上衣", "下装", "鞋子", "连体裙"].includes(d.category) ? d.category : "上衣",
-          ph: "tee",
-          dataUrl: d.image || pending,
-          labels: d.labels || null,
-        }));
+      let newItems = [];
+      try {
+        if (pending === "ph") {
+          await new Promise(r => setTimeout(r, 900));   /* 演示路径假延时 */
+          newItems = [{ id: "c" + Date.now(), name: "我的单品", cat: "上衣", ph: "tee", dataUrl: null }];
+        } else {
+          const r = await AI.segment(pending);
+          const list = (r.items && r.items.length) ? r.items : [{ image: r.image || pending, category: "上衣" }];
+          newItems = list.map((d, i) => ({
+            id: "c" + Date.now() + "_" + i,
+            name: d.name || "我的单品",
+            cat: ["上衣", "下装", "鞋子", "连体裙"].includes(d.category) ? d.category : "上衣",
+            ph: "tee",
+            dataUrl: d.image || pending,
+            labels: d.labels || null,
+          }));
+        }
+        Store.set({ customItems: [...newItems, ...Store.get().customItems] });   /* 新上传排最前 */
+      } catch (e) {
+        console.warn("识别失败", e);
+        toast("识别失败，请重新上传");
       }
-      Store.set({
-        customItems: [...newItems, ...Store.get().customItems],   /* 新上传排最前 */
-        pendingUpload: null,
-      });
+      scanning = false;
       renderCats(); renderItems();
-      toast(newItems.length > 1 ? `AI 拆分出 ${newItems.length} 件，已全部入橱` : "已添加到衣橱");
+      if (newItems.length) toast(newItems.length > 1 ? `AI 拆分出 ${newItems.length} 件，已全部入橱` : "已添加到衣橱");
     })();
   }
 </script>
