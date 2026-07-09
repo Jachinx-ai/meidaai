@@ -14,19 +14,17 @@ const path = require("path");
   } catch { /* 没有 .env 时静默，走占位实现 */ }
 })();
 
+const GPT_IMAGE_2 = "openai/gpt-5.4-image-2";
+
 module.exports = {
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || "",
-  DASHSCOPE_API_KEY: process.env.DASHSCOPE_API_KEY || "",
 
-  /* 模型名集中在这里，替换模型只改这一处 */
+  /* 本地 AI 效果流程统一只用 GPT Image 2，避免多模型结果风格漂移 */
   MODELS: {
-    qc: "qwen/qwen3.6-flash",                    // 模型1 照片质检
-    vision: "qwen/qwen3-vl-30b-a3b-instruct",    // 模型2第1步 穿着识别 + 模型3 打标签（主力）
-    visionBackup: "qwen/qwen3-vl-8b-instruct",   // 模型3 备用
-    /* 平铺图生成：主模型优先保质量；Gemini 只做失败兜底 */
-    flatImage: "openai/gpt-5.4-image-2",         // 模型2第2步 平铺图生成（质量优先）
-    flatImageFallback: "google/gemini-3.1-flash-image", // 备用：速度快但稳定性较差
-    tryon: "aitryon-plus",                       // 模型4 试穿（DashScope）
-    recommend: "qwen/qwen3.6-flash",             // 模型5 搭配推荐（读标签做选择，快且便宜）
+    qc: GPT_IMAGE_2,            // 模型1 照片质检
+    vision: GPT_IMAGE_2,        // 模型2第1步 穿着识别 + 模型3 打标签
+    flatImage: GPT_IMAGE_2,     // 模型2第2步 平铺图生成
+    tryon: GPT_IMAGE_2,         // 模型4 试穿生成
+    recommend: GPT_IMAGE_2,     // 模型5 搭配推荐
   },
 };

@@ -5,7 +5,7 @@
                around: "id" | null }                围绕某件单品搭配
    输出    ：{ items: [ "id", ... ], reason: "搭配理由" }
 
-   当前模型：OpenRouter · qwen3.6-flash（读衣橱标签做选择），见 config.js MODELS.recommend
+   当前模型：OpenRouter · GPT Image 2（读衣橱标签做选择），见 config.js MODELS.recommend
    模型失败或没配密钥时自动回退规则搭配。
    替换模型：改 config.js 的 MODELS.recommend；提示词在 prompts.js 的 recommendPrompt
    ============================================================ */

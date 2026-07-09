@@ -13,9 +13,9 @@
    }
 
    流程（对应提示词库的模型2两步 + 模型3）：
-   1. 识别图中有哪些单品（Qwen3-VL · DETECT_PROMPT）
+   1. 识别图中有哪些单品（GPT Image 2 · DETECT_PROMPT）
    2. 逐件生成白底平铺图（质量优先图像模型 · flatImagePrompt），失败用原图兜底
-   3. 逐件打标签（Qwen3-VL · TAG_PROMPT），细分类映射到四大分类
+   3. 逐件打标签（GPT Image 2 · TAG_PROMPT），细分类映射到四大分类
 
    替换模型：改 config.js 的 MODELS.vision / MODELS.flatImage
    ============================================================ */
@@ -34,14 +34,8 @@ const {
 } = require("./prompts");
 
 async function tagOne(image) {
-  try {
-    const text = await chat(MODELS.vision, imageMessage(TAG_PROMPT, image), { timeoutMs: 45000 });
-    return parseJson(text);
-  } catch (e) {
-    console.warn("打标签失败（用备用模型重试）:", e.message);
-    const text = await chat(MODELS.visionBackup, imageMessage(TAG_PROMPT, image), { timeoutMs: 45000 });
-    return parseJson(text);
-  }
+  const text = await chat(MODELS.vision, imageMessage(TAG_PROMPT, image), { timeoutMs: 45000 });
+  return parseJson(text);
 }
 
 async function checkFlat(image, category) {
@@ -62,56 +56,38 @@ async function generateCleanFlat(reqImage, detected) {
   const category = detected.category || "服装";
   const description = detected.flat_description || detected.description || "";
 
-  const modelCandidates = [MODELS.flatImage, MODELS.flatImageFallback].filter(Boolean);
-  let first = null;
-  let lastReason = "";
+  const model = MODELS.flatImage;
+  let first;
 
-  for (const model of modelCandidates) {
-    let candidate = null;
-
-    try {
-      /* 先按视觉识别出的商品描述生成，避免把手机截图界面一起临摹进去 */
-      candidate = await generateImageFromText(model, flatTextImagePrompt(category, description), { timeoutMs: 180000 });
-    } catch (e) {
-      console.warn(`文字平铺图生成失败（${category}/${model}），改用参考图生成:`, e.message);
-      try {
-        candidate = await generateImage(model, flatImagePrompt(category, description), reqImage, { timeoutMs: 180000 });
-      } catch (refError) {
-        console.warn(`参考图平铺图生成失败（${category}/${model}）:`, refError.message);
-        continue;
-      }
-    }
-
-    if (!first) first = candidate;
-
-    const qc = await checkFlat(candidate, category);
-    if (qc.pass) return candidate;
-
-    lastReason = qc.reason || "未知原因";
-    console.warn(`平铺图质检不通过（${category}/${model}），重试生成:`, lastReason);
-
-    try {
-      const retry = await generateImageFromText(
-        model,
-        repairFlatImagePrompt(category, description, lastReason),
-        { timeoutMs: 180000 }
-      );
-      const retryQc = await checkFlat(retry, category);
-      if (retryQc.pass) return retry;
-
-      lastReason = retryQc.reason || lastReason;
-      console.warn(`平铺图重试后仍不理想（${category}/${model}）:`, lastReason);
-    } catch (e) {
-      console.warn(`平铺图重试失败（${category}/${model}）:`, e.message);
-    }
+  try {
+    /* 先按视觉识别出的商品描述生成，避免把手机截图界面一起临摹进去 */
+    first = await generateImageFromText(model, flatTextImagePrompt(category, description), { timeoutMs: 180000 });
+  } catch (e) {
+    console.warn(`文字平铺图生成失败（${category}/${model}），改用参考图生成:`, e.message);
+    first = await generateImage(model, flatImagePrompt(category, description), reqImage, { timeoutMs: 180000 });
   }
 
-  if (first) {
-    console.warn(`所有平铺图模型质检均未通过（${category}），返回首张生成图:`, lastReason || "未知原因");
+  const qc = await checkFlat(first, category);
+  if (qc.pass) return first;
+
+  const reason = qc.reason || "未知原因";
+  console.warn(`平铺图质检不通过（${category}/${model}），使用同一模型重试:`, reason);
+
+  try {
+    const retry = await generateImageFromText(
+      model,
+      repairFlatImagePrompt(category, description, reason),
+      { timeoutMs: 180000 }
+    );
+    const retryQc = await checkFlat(retry, category);
+    if (!retryQc.pass) {
+      console.warn(`平铺图重试后仍不理想（${category}/${model}）:`, retryQc.reason || reason);
+    }
+    return retry;
+  } catch (e) {
+    console.warn(`平铺图重试失败（${category}/${model}），返回第一次生成结果:`, e.message);
     return first;
   }
-
-  throw new Error(`平铺图生成失败（${category}）`);
 }
 
 module.exports = async function segment(req) {

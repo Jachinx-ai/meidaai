@@ -4,7 +4,7 @@
    输入 req：{ image: "data:image/...;base64,..." }   用户上传的个人照片
    输出    ：{ pass, fail_reasons, primary_reason, confidence, short_observation }
 
-   当前模型：OpenRouter · qwen3.6-flash（视觉版），见 config.js MODELS.qc
+   当前模型：OpenRouter · GPT Image 2，见 config.js MODELS.qc
    替换模型：改 config.js 的 MODELS.qc 即可；提示词在 prompts.js
    ============================================================ */
 
