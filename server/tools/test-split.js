@@ -20,16 +20,8 @@
 const fs = require("fs");
 const path = require("path");
 const { OPENROUTER_API_KEY, DASHSCOPE_API_KEY, MODELS } = require("../ai/config");
-const { DETECT_PROMPT, TAG_PROMPT, mapScene } = require("../ai/prompts");
+const { DETECT_PROMPT, GEN_PROMPTS, TAG_PROMPT, mapScene } = require("../ai/prompts");
 const { parseJson } = require("../ai/openrouter");
-
-/* ---------- 每类的生图提示词（用户提供） ---------- */
-const GEN_PROMPTS = {
-  "上衣": "请帮我把这件这张图片上模特上身穿的上衣单件拆出来，单独生成一张平铺图。要求保留材质细节、版型、颜色、样式都与原图保持一致。如果有被其他位置遮挡的，请自动补全。",
-  "下装": "请帮我把这件这张图片模特下身穿的裤子/裙子单件拆出来，单独生成一张平铺图。要求保留材质细节、版型、颜色、样式都与原图保持一致。如果有被其他位置遮挡的，请自动补全。",
-  "鞋子": "请帮我把这件这张图片上模特脚上穿的鞋子单件拆出来，单独生成一张平铺图，正面或侧面展示。要求保留材质细节、版型、颜色、样式都与原图保持一致。如果有被其他位置遮挡的，请自动补全。",
-  "连体裙": "请帮我把这件这张图片上模特身上穿的连体装单件拆出来，单独生成一张平铺图，正面展示。要求保留材质细节、版型、颜色、样式都与原图保持一致。如果有被其他位置遮挡的，请自动补全。",
-};
 
 /* ---------- 计价常量（可改；gemini 按 token，qwen 按张数） ---------- */
 const RATE = {
