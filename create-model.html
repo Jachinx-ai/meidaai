@@ -22,6 +22,8 @@
 
   /* 预设模特 */
   .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 18px 24px; }
+  /* 确认按钮与网格同宽对齐：容器无水平内边距，btn-block 会顶满 375px 屏宽 */
+  #btnPresetOk { width: calc(100% - 48px); margin: 0 24px; }
   .preset {
     position: relative;
     background: var(--grad-soft);
@@ -203,6 +205,10 @@
 <script src="js/ai.js"></script>
 <script>
   renderStatusbar();
+
+  /* bfcache 恢复时刷新：避免 leaving 锁和「正在返回…」按钮残留导致两个 tab 的确认全部失效，
+     同时避免 Store 内存缓存停留在离开时的旧快照 */
+  window.addEventListener("pageshow", e => { if (e.persisted) location.reload(); });
 
   /* tab 切换 */
   $$(".seg button").forEach(b => b.addEventListener("click", () => {

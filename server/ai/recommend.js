@@ -25,6 +25,8 @@ function normalizeItems(ids, wardrobe) {
 
 function isComplete(items, wardrobe) {
   const cats = items.map((id) => wardrobe.find((i) => i.id === id)?.category).filter(Boolean);
+  /* 同分类不许重复：模型偶尔返回"两件上衣/两条连体裙"，重复即判不成套，走规则兜底 */
+  if (new Set(cats).size !== cats.length) return false;
   const needsShoes = hasCat(wardrobe, "鞋子");
   const withShoes = !needsShoes || cats.includes("鞋子");
   return (
