@@ -127,6 +127,7 @@
         <span style="color:var(--line)">|</span>
         <span id="selCount">已选 0 件</span>
       </div>
+      <button class="skip" id="btnSkipItems">稍后再选</button>
       <button class="btn btn-primary btn-block" id="btnFinish" disabled>请选择你已有的衣服</button>
     </div>
   </section>
@@ -151,11 +152,25 @@
     if (n === 4) renderItemsGrid();   // 按偏好动态渲染单品
     renderProg();
   }
+  /* 步骤导航防抖：快速连点会跨步误触（如双击"下一步"直接命中下一屏按钮），350ms 内只认第一次 */
+  let lastNav = 0;
+  function navOk() { if (Date.now() - lastNav < 350) return false; lastNav = Date.now(); return true; }
   $("#btnBack").addEventListener("click", () => {
+    if (!navOk()) return;
     if (cur === 1) history.back(); else goStep(cur - 1);
   });
-  $$("[data-next]").forEach(b => b.addEventListener("click", () => goStep(cur + 1)));
-  $$("[data-next-skip]").forEach(b => b.addEventListener("click", () => goStep(cur + 1)));
+  $$("[data-next]").forEach(b => b.addEventListener("click", () => {
+    if (!navOk()) return;
+    goStep(cur + 1);
+  }));
+  $$("[data-next-skip]").forEach(b => b.addEventListener("click", () => {
+    if (!navOk()) return;
+    /* 跳过=不填职业：清掉误点的职业选择，返回重进时不再高亮 */
+    answers.job = "";
+    $$("#jobGroups .pick").forEach(x => x.classList.remove("active"));
+    $('.step[data-step="2"] [data-next]').disabled = true;
+    goStep(cur + 1);
+  }));
 
   /* 单选组 */
   function singlePick(rootSel, key) {
@@ -198,8 +213,11 @@
     if (answers.pref.includes("男装")) g.add("m");
     if (!g.size) { g.add("f"); g.add("m"); }
     stepItems = ITEMS.filter(i => g.has(i.gender));   // 该性别全部单品（含连体裙）
+    /* 返回改偏好后重进：剔除已不在列表里的选中项，避免看不见的衣服进衣橱 */
+    const ids = new Set(stepItems.map(i => i.id));
+    picked.forEach(id => { if (!ids.has(id)) picked.delete(id); });
     $("#itemsGrid").innerHTML = stepItems.map(it => `
-      <div class="item-cell" data-id="${it.id}">
+      <div class="item-cell ${picked.has(it.id) ? "sel" : ""}" data-id="${it.id}">
         ${itemImg(it)}
         <span class="ck"></span>
       </div>`).join("");
@@ -209,6 +227,7 @@
       c.classList.toggle("sel", picked.has(id));
       refreshSel();
     }));
+    refreshSel();
   }
   function refreshSel() {
     $("#selCount").textContent = `已选 ${picked.size} 件`;
@@ -227,12 +246,20 @@
     refreshSel();
   });
   $("#btnFinish").addEventListener("click", () => {
+    if (!navOk()) return;
     Store.set({
       wardrobe: [...picked],
       profile: answers,
       onboarded: true,
     });
     toast("衣橱创建成功");
+    setTimeout(() => location.href = "home.html", 600);
+  });
+  /* 一件都没有也能完成引导：空衣橱由 Store 兜底成基础款 */
+  $("#btnSkipItems").addEventListener("click", () => {
+    if (!navOk()) return;
+    Store.set({ wardrobe: [], profile: answers, onboarded: true });
+    toast("已为你准备了基础衣橱");
     setTimeout(() => location.href = "home.html", 600);
   });
 
