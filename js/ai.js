@@ -57,7 +57,12 @@ const AI = {
     if (await this.available()) {
       try {
         return await this._post("/api/segment", { image }, 240000);
-      } catch (e) { console.warn("segment 后端失败，走本地模拟", e); }
+      } catch (e) {
+        /* 后端在线但请求失败＝真失败，上抛给页面提示"识别失败"，
+           不再静默把整张原图当"上衣"入橱（mock 只用于离线演示降级） */
+        console.warn("segment 请求失败（在线）", e);
+        throw e;
+      }
     }
     /* 本地模拟：原图返回 */
     return { image, items: [{ image, category: "上衣", name: "我的单品" }], mock: true };
@@ -69,7 +74,12 @@ const AI = {
     if (await this.available()) {
       try {
         return await this._post("/api/tryon", { modelImage, items }, 240000);
-      } catch (e) { console.warn("tryon 后端失败，走本地模拟", e); }
+      } catch (e) {
+        /* 后端在线但本次请求失败（网络闪断/服务重启/5xx）＝真失败，
+           不带 mock——mock 只标记"无密钥/后端不在线"的预期降级 */
+        console.warn("tryon 请求失败（在线）", e);
+        return { image: null };
+      }
     }
     return { image: null, mock: true };
   },
@@ -90,11 +100,12 @@ const AI = {
         if (r && Array.isArray(r.items) && r.items.length) return r;
       } catch (e) { console.warn("recommend 后端失败，走本地模拟", e); }
     }
-    /* 本地模拟：与后端占位实现相同的规则。
-       系统款按用户的服饰性别偏好过滤（与 app.js 的 prefGenders 同一口径），
-       用户自己上传的衣服（dataUrl）不限性别 */
+    /* 本地模拟：与后端 recommend.js 的 ruleMatch 同口径——
+       有锚点单品时按它的性别过滤（系统款不跨性别混搭），无锚点才用偏好；
+       用户自己上传的衣服（dataUrl）不限性别；组套后做成套校验，缺件不算一套 */
     const pick = list => list[Math.floor(Math.random() * list.length)];
-    const genders = prefGenders();
+    const it = around ? wardrobe.find(i => i.id === around) : null;
+    const genders = it && it.gender ? new Set([it.gender]) : prefGenders();
     const byCat = (cat, ex) => {
       const pool = wardrobe.filter(i => i.cat === cat && i.id !== ex
         && (i.dataUrl || !i.gender || genders.has(i.gender)));
@@ -103,7 +114,6 @@ const AI = {
       return list.length ? pick(list).id : null;
     };
     let items;
-    const it = around ? wardrobe.find(i => i.id === around) : null;
     if (it) {
       const need = {
         "上衣": ["下装", "鞋子"], "下装": ["上衣", "鞋子"],
@@ -115,6 +125,11 @@ const AI = {
         ? [byCat("上衣"), byCat("下装"), byCat("鞋子")]
         : [byCat("连体裙"), byCat("鞋子")];
     }
-    return { items: items.filter(Boolean), mock: true };
+    items = items.filter(Boolean);
+    /* 成套校验（与后端 isComplete 同口径）：上衣+下装+鞋子 或 连体裙+鞋子 */
+    const cats = items.map(id => (wardrobe.find(i => i.id === id) || {}).cat);
+    const complete = cats.includes("鞋子")
+      && (cats.includes("连体裙") || (cats.includes("上衣") && cats.includes("下装")));
+    return { items: complete ? items : [], mock: true };
   },
 };

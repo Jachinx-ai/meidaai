@@ -71,27 +71,23 @@
     color: var(--muted);
     box-shadow: none;
   }
-  /* 真实试穿生成中的状态提示 */
-  .gen-status {
-    position: absolute; left: 50%; top: 62px; transform: translateX(-50%);
-    z-index: 6; display: none; align-items: center;
-    padding: 9px 16px; border-radius: 999px;
-    background: rgba(16,16,18,.85); color: #fff;
-    font-size: 13px; font-weight: 600; white-space: nowrap;
-  }
-  .gen-status.show { display: flex; }
-  /* 生成等待中的加载蒙层：盖住模特图，等待期不显示临时叠图 */
+  /* 生成中的整页遮罩：盖住模特区+抽屉，生成结束（成功/失败）才撤（产品负责人定） */
   .gen-loading {
-    position: absolute; inset: 0; z-index: 4;
-    display: none; align-items: center; justify-content: center;
-    background: rgba(242,242,239,.5);
-    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    position: fixed; inset: 0; z-index: 100;
+    display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    background: rgba(242,242,239,.72);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   }
   .gen-loading.show { display: flex; }
   .gen-loading .spinner {
-    width: 32px; height: 32px; border-radius: 50%;
+    width: 36px; height: 36px; border-radius: 50%;
     border: 3px solid rgba(16,16,18,.14); border-top-color: var(--ink);
     animation: gspin .8s linear infinite;
+  }
+  .gen-loading .gen-text {
+    padding: 10px 18px; border-radius: 999px;
+    background: rgba(16,16,18,.85); color: #fff;
+    font-size: 14px; font-weight: 600; white-space: nowrap;
   }
   @keyframes gspin { to { transform: rotate(360deg); } }
 
@@ -179,8 +175,7 @@
     </div>
 
     <button class="btn ai-pill ai-match" id="btnAI">✦ AI 搭配我的衣服</button>
-    <div class="gen-loading" id="genLoading"><div class="spinner"></div></div>
-    <div class="gen-status" id="genStatus">✦ AI 试穿生成中，约需 20 秒…</div>
+    <div class="gen-loading" id="genLoading"><div class="spinner"></div><div class="gen-text">✦ 穿搭生成中，请耐心等待…</div></div>
   </div>
 
   <div class="drawer">
@@ -265,15 +260,29 @@
   }
 
   /* 舞台渲染：有 AI 生成图用生成图，否则模特图 + 衣服按分类叠放 */
-  /* 加载态开关：显示/隐藏"生成中"蒙层与提示 */
+  /* 加载态开关：显示/隐藏"生成中"整页遮罩 */
   function setLoading(on) {
     $("#genLoading").classList.toggle("show", on);
-    $("#genStatus").classList.toggle("show", on);
   }
 
   function renderStage() {
     const m = curModel();
     const wrap = $("#modelWrap");
+    if (generating) {
+      /* 生成等待中：整页遮罩盖住模特与抽屉；台上保留旧生成图（没有则模特底图），失败时旧图不丢 */
+      if (genImage) {
+        wrap.innerHTML = `<img class="gen" src="${genImage}" alt="试穿效果">`;
+        syncStageBg(genImage);
+      } else {
+        const modelSrc = m.dataUrl || defaultModelSrc();
+        syncStageBg(modelSrc);
+        wrap.innerHTML = `<img class="base" id="modelImg" src="${modelSrc}"
+            onerror="this.onerror=null;this.src='assets/ph/model.svg'"
+            style="${m.dataUrl ? "border-radius:18px" : ""}" alt="试衣模特">`;
+      }
+      setLoading(true);
+      return;
+    }
     if (genImage) {
       /* 生图模型已把鞋子一起生成，直接展示整图，不再前端叠鞋 */
       wrap.innerHTML = `<img class="gen" src="${genImage}" alt="试穿效果">`;
@@ -283,14 +292,6 @@
     }
     const modelSrc = m.dataUrl || defaultModelSrc();
     syncStageBg(modelSrc);
-    if (generating) {
-      /* 生成等待中：只显示模特图 + 加载蒙层，不叠临时衣服（避免双层穿帮） */
-      wrap.innerHTML = `<img class="base" id="modelImg" src="${modelSrc}"
-          onerror="this.onerror=null;this.src='assets/ph/model.svg'"
-          style="${m.dataUrl ? "border-radius:18px" : ""}" alt="试衣模特">`;
-      setLoading(true);
-      return;
-    }
     setLoading(false);
     const base = `<img class="base" id="modelImg"
         src="${m.dataUrl || defaultModelSrc()}"
@@ -350,13 +351,16 @@
   function applyTryon() {
     clearTimeout(tryonTimer);
     if (!wearing.length) {           /* 身上没有任何衣服：不发生成请求、不进加载态，显示纯模特 */
+      tryonSeq++;                    /* 作废在途请求，防过期结果穿回已脱掉的衣服 */
       generating = false; genImage = null; renderStage(); return;
     }
     const m = curModel();
     const key = (m.id || "m0") + "|" + [...wearing].sort().join(",");
     if (genCache.has(key)) { doTryon(); return; }   /* 命中缓存：立即出图，无加载态 */
     if (Date.now() - (failCache.get(key) || 0) < FAIL_COOLDOWN) {
-      toast("刚失败过，请稍等几秒再试");             /* 冷静期内：不发请求不花钱，台上保持原样 */
+      tryonSeq++;                    /* 作废在途请求，防过期结果与当前穿着错配 */
+      generating = false; renderStage();   /* 撤掉可能残留的加载遮罩，台上保持原样 */
+      toast("刚失败过，请稍等几秒再试");             /* 冷静期内：不发请求不花钱 */
       return;
     }
     generating = true;
@@ -390,6 +394,7 @@
     if (seq !== tryonSeq) return;    /* 等待期间又换了衣服，丢弃过期结果 */
     generating = false;
     if (img) {                       /* 成功：衣服直接上身 */
+      offlineOverlay = false;        /* 真生成成功：解除演示模式锁存，后续失败按真失败处理 */
       genImage = img;
       renderStage();
       saveSnapshot();
@@ -504,7 +509,7 @@
         </div>`).join("");
     $$("[data-o]").forEach(c => c.addEventListener("click", () => {
       const o = OUTFITS.find(x => x.id === c.dataset.o);
-      wearing = [...o.items]; curOutfitId = o.id; genImage = null;
+      wearing = [...o.items]; curOutfitId = o.id;   /* 旧生成图交给 doTryon 统一管理，失败时留旧图 */
       renderAll(); applyTryon();
       toast(`已试穿「${o.name}」`);
     }));
@@ -551,17 +556,22 @@
         const small = await compressImage(reader.result);
         const r = await AI.segment(small);
         const list = (r.items && r.items.length) ? r.items : [{ image: r.image || small, category: "上衣" }];
-        const newItems = list.map((d, i) => ({
+        /* 生成的平铺图是全尺寸大图，入橱前必须压缩，防止一次上传撑爆 localStorage */
+        const newItems = await Promise.all(list.map(async (d, i) => ({
           id: "c" + Date.now() + "_" + i,
           name: d.name || "我的单品",
           cat: ["上衣", "下装", "鞋子", "连体裙"].includes(d.category) ? d.category : "上衣",
           ph: "tee",
-          dataUrl: d.image || small,
+          dataUrl: await compressImage(d.image || small),
           labels: d.labels || null,
-        }));
-        Store.set({ customItems: [...newItems, ...Store.get().customItems] });   /* 新上传排最前 */
+        })));
+        const saved = Store.set({ customItems: [...newItems, ...Store.get().customItems] });   /* 新上传排最前 */
         renderMineGrid(); syncAIBtn();
-        toast(newItems.length > 1 ? `AI 拆分出 ${newItems.length} 件，已全部入橱` : "已添加到衣橱");
+        /* 没存下时不报成功，让 Store.set 的存储警告留在屏上 */
+        if (saved !== false) toast(newItems.length > 1 ? `AI 拆分出 ${newItems.length} 件，已全部入橱` : "已添加到衣橱");
+      } catch (e) {
+        console.warn("识别失败", e);
+        toast("识别失败，请重新上传");
       } finally {
         uploading = false;
       }
@@ -574,16 +584,17 @@
   function wearItem(id) {
     const it = itemById(id);
     const same = wearing.find(w => itemById(w)?.cat === it.cat);
-    if (same === id) { wearing = wearing.filter(w => w !== id); }
+    const takenOff = same === id;                       /* 点已穿的同一件 = 脱下 */
+    if (takenOff) { wearing = wearing.filter(w => w !== id); }
     else if (same) { wearing = wearing.map(w => (w === same ? id : w)); }
     else {
       if (it.cat === "连体裙") wearing = wearing.filter(w => !["上衣", "下装"].includes(itemById(w)?.cat));
       if (["上衣", "下装"].includes(it.cat)) wearing = wearing.filter(w => itemById(w)?.cat !== "连体裙");
       wearing = [...wearing, id];
     }
-    curOutfitId = null; genImage = null;
+    curOutfitId = null;                                 /* 旧生成图交给 doTryon 统一管理，失败时留旧图 */
     renderAll(); applyTryon();
-    toast(`已换上「${it.name}」`);
+    toast(takenOff ? `已脱下「${it.name}」` : `已换上「${it.name}」`);
   }
 
   /* ---------- AI 搭配 ---------- */
@@ -599,7 +610,7 @@
       const r = await AI.recommend(wardrobeItems(), around);
       if (r.items && r.items.length) {
         wearing = r.items;
-        curOutfitId = null; genImage = null;
+        curOutfitId = null;   /* 旧生成图交给 doTryon 统一管理，失败时留旧图 */
         renderAll();
         await applyTryon();
         toast(r.reason

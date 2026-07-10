@@ -35,7 +35,7 @@ module.exports = async function tryon(req) {
   if (top) garments.push({ label: top.category === "连体裙" ? "连体裙" : "上衣", img: top.image });
   if (bottom && !(top && top.category === "连体裙")) garments.push({ label: "下装", img: bottom.image });
   if (shoes) garments.push({ label: "鞋子", img: shoes.image });
-  if (!garments.length) return { image: null };   // 没有任何真实衣服图，不生成
+  if (!garments.length) return { image: null, mock: true };   // 没有任何真实衣服图＝预期降级（重试也不会成功），不算真失败
 
   const listDesc = garments.map((g, i) => `第${i + 2}张是${g.label}`).join("，");
   const wearDesc = garments.map((g) => `这${g.label === "鞋子" ? "双" : "件"}${g.label}`).join("、");
