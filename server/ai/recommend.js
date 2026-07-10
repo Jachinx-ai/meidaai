@@ -16,6 +16,23 @@ const { recommendPrompt } = require("./prompts");
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
+const hasCat = (wardrobe, cat) => wardrobe.some((i) => i.category === cat);
+
+function normalizeItems(ids, wardrobe) {
+  const valid = new Set(wardrobe.map((i) => i.id));
+  return [...new Set(ids || [])].filter((id) => valid.has(id));
+}
+
+function isComplete(items, wardrobe) {
+  const cats = items.map((id) => wardrobe.find((i) => i.id === id)?.category).filter(Boolean);
+  const needsShoes = hasCat(wardrobe, "鞋子");
+  const withShoes = !needsShoes || cats.includes("鞋子");
+  return (
+    (cats.includes("连体裙") && withShoes && !cats.includes("上衣") && !cats.includes("下装")) ||
+    (cats.includes("上衣") && cats.includes("下装") && withShoes)
+  );
+}
+
 /* 规则搭配（兜底）：同分类优先用户上传的衣服，系统款不跨性别混搭 */
 function ruleMatch(wardrobe, aroundId) {
   const anchor = aroundId ? wardrobe.find((i) => i.id === aroundId) : null;
@@ -30,19 +47,25 @@ function ruleMatch(wardrobe, aroundId) {
   let items;
   const around = aroundId ? wardrobe.find((i) => i.id === aroundId) : null;
   if (around) {
+    const hasDress = hasCat(wardrobe, "连体裙");
+    const hasTop = hasCat(wardrobe, "上衣");
+    const hasBottom = hasCat(wardrobe, "下装");
     const need = {
       上衣: ["下装", "鞋子"],
       下装: ["上衣", "鞋子"],
       连体裙: ["鞋子"],
-      鞋子: Math.random() > 0.3 ? ["上衣", "下装"] : ["连体裙"],
+      鞋子: hasTop && hasBottom ? ["上衣", "下装"] : (hasDress ? ["连体裙"] : []),
     }[around.category] || [];
     items = [around.id, ...need.map((c) => byCat(c, around.id))];
   } else {
-    items = Math.random() > 0.3
-      ? [byCat("上衣"), byCat("下装"), byCat("鞋子")]
-      : [byCat("连体裙"), byCat("鞋子")];
+    const canTopBottom = hasCat(wardrobe, "上衣") && hasCat(wardrobe, "下装");
+    const canDress = hasCat(wardrobe, "连体裙");
+    const useDress = canDress && (!canTopBottom || Math.random() <= 0.3);
+    items = useDress
+      ? [byCat("连体裙"), byCat("鞋子")]
+      : [byCat("上衣"), byCat("下装"), byCat("鞋子")];
   }
-  return { items: items.filter(Boolean), reason: "" };
+  return { items: normalizeItems(items.filter(Boolean), wardrobe), reason: "" };
 }
 
 module.exports = async function recommend(req) {
@@ -59,13 +82,8 @@ module.exports = async function recommend(req) {
     const r = parseJson(text);
 
     /* 校验模型输出：id 必须存在；围绕单品必须包含；分类组合必须成套 */
-    const valid = new Set(wardrobe.map((i) => i.id));
-    let items = (r.items || []).filter((id) => valid.has(id));
-    const cats = items.map((id) => wardrobe.find((i) => i.id === id).category);
-    const complete =
-      (cats.includes("连体裙") && cats.includes("鞋子")) ||
-      (cats.includes("上衣") && cats.includes("下装"));
-    if (!items.length || !complete || (around && !items.includes(around))) {
+    const items = normalizeItems(r.items, wardrobe);
+    if (!items.length || !isComplete(items, wardrobe) || (around && !items.includes(around))) {
       throw new Error("模型输出不成套，走规则兜底");
     }
     return { items, reason: r.reason || "" };
