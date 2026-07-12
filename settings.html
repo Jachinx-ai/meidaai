@@ -6,6 +6,9 @@
 <title>设置 · 美搭</title>
 <link rel="stylesheet" href="css/base.css">
 <style>
+  /* 锁定一屏：顶栏固定，列表在 .scroll-body 内滚动（否则内容撑高页面后滚动会被吞掉） */
+  .app { height: 100dvh; min-height: 0; }
+
   .pagehead .ptitle { flex: 1; text-align: center; font-size: 17px; font-weight: 800; }
 
   /* 分组卡片与设置行 */
