@@ -17,6 +17,7 @@
     display: flex; align-items: center; justify-content: center;
     border: 2.5px solid transparent; padding: 10px;
     transition: border-color .15s ease;
+    font-size: 26px;   /* 圆圈里的兜底 emoji 尺寸 */
   }
   .catdot.on .cir { border-color: var(--ink); }
   .catdot .cir img { width: 100%; height: 100%; object-fit: contain; }
@@ -100,13 +101,15 @@
   let splits = [];        /* 拆图进度卡：[{target, pct, status: run|fail|done, stop}] */
   function renderCats() {
     const items = wardrobeItems();
+    /* 分类空态兜底 emoji：按分类给对应图标（连体裙不再显示衬衫） */
+    const CAT_EMOJI = { "全部": "👕", "上衣": "👕", "下装": "👖", "鞋子": "👟", "连体裙": "👗" };
     $("#catbar").innerHTML = CATS.map(c => {
       const list = c === "全部" ? items : items.filter(i => i.cat === c);
       const cover = list[0];
       return `
       <div class="catdot ${c === cat ? "on" : ""}" data-c="${c}">
         <div class="cir">
-          ${cover ? (cover.dataUrl ? `<img src="${cover.dataUrl}">` : itemImg(cover)) : "👕"}
+          ${c === "全部" ? "👕" : (cover ? (cover.dataUrl ? `<img src="${cover.dataUrl}">` : itemImg(cover)) : (CAT_EMOJI[c] || "👕"))}
           <span class="badge">${list.length}</span>
         </div>
         <span class="lbl">${c}</span>

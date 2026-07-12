@@ -18,10 +18,12 @@
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
+  /* 各选项按内容自适应宽度（女性/男性文字等长自然等宽，比不愿透露稍窄） */
   .picks { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-top: 30px; }
+  .picks .pick { gap: 6px; }
   /* 选项图标与文字对齐 */
   .pick .pi {
-    display: inline-flex; width: 22px; height: 22px;
+    display: inline-flex; width: 18px; height: 18px;
     align-items: center; justify-content: center;
     font-style: normal; line-height: 1; font-size: 18px;
   }

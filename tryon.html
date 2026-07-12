@@ -10,6 +10,8 @@
   body { background: #f2f2ef; }
   /* 锁定为一屏：模特舞台固定不随页面滚走，只有抽屉内的衣服网格滚动（同 onboarding 的做法） */
   .app { background: #ecece9; height: 100dvh; min-height: 0; }
+  /* 本页顶部颜色跟随模特图（syncStageBg），关掉全站薄荷色顶部渐变，避免出现割裂色条 */
+  .app::before { display: none; }
   /* 模特舞台 */
   .stage {
     position: relative;
@@ -41,17 +43,19 @@
   .model-switch {
     width: 46px; height: 46px; border-radius: 50%;
     border: 2px solid #fff; background: var(--fill);
-    overflow: hidden; cursor: pointer;
+    cursor: pointer;
     box-shadow: var(--shadow-card);
     display: flex; align-items: center; justify-content: center; font-size: 18px;
     position: relative;
   }
-  .model-switch img { width: 100%; height: 100%; object-fit: cover; }
+  /* 圆形裁剪放在图片上而不是容器上，替换角标才能完整浮在圆外不被切割 */
+  .model-switch img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  /* 切换模特角标：矢量双箭头（文字符号⇄发虚不居中），白描边与头像分开 */
   .model-switch::after {
-    content: "⇄"; position: absolute; right: -3px; top: -3px;
-    width: 17px; height: 17px; border-radius: 50%;
-    background: var(--ink); color: #fff; font-size: 10px;
-    display: flex; align-items: center; justify-content: center;
+    content: ""; position: absolute; right: -5px; top: -5px;
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid #fff;
+    background: var(--ink) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8.5h12.5M15 4.5l4 4-4 4"/><path d="M18 15.5H5.5M9 11.5l-4 4 4 4"/></svg>') center/11px 11px no-repeat;
   }
   .stage-side {
     position: absolute; right: var(--pad); top: 50%; transform: translateY(-70%);
@@ -64,6 +68,8 @@
     display: flex; align-items: center; gap: 6px;
     box-shadow: var(--shadow-float);
   }
+  /* ✦ 星标单独控制大小并与文字垂直居中（跟随字号在部分手机上偏小且不齐） */
+  .ai-match .star { font-size: 17px; line-height: 1; display: inline-block; }
   .ai-match.off {
     background-image: linear-gradient(var(--card), var(--card)),
       linear-gradient(96deg, #dcdcd9, #dcdcd9);
@@ -100,7 +106,17 @@
     z-index: 4; position: relative;
     min-height: 0;
   }
-  .drawer .grab { width: 42px; height: 4.5px; border-radius: 3px; background: rgba(255,255,255,.22); margin: 10px auto 4px; }
+  /* 抽屉把手：可按住上下拖动（横线是视觉，外层是 22px 高的手势热区） */
+  .drawer .grab {
+    display: flex; align-items: center; justify-content: center;
+    height: 22px; margin: 4px 0 0;
+    touch-action: none; cursor: grab;
+  }
+  .drawer .grab::before {
+    content: ""; width: 42px; height: 4.5px; border-radius: 3px;
+    background: rgba(255,255,255,.22);
+  }
+  .stage.snap { transition: height .25s ease; }
   .dtabs { display: flex; justify-content: center; gap: 44px; padding: 8px 0 2px; }
   .dtabs button {
     background: none; border: none; cursor: pointer;
@@ -113,7 +129,7 @@
     content: ""; position: absolute; left: 50%; transform: translateX(-50%); bottom: -3px;
     width: 24px; height: 3px; border-radius: 2px; background: #fff;
   }
-  .dchips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 14px var(--pad) 4px; }
+  .dchips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 14px var(--pad) 10px; }
   .dchips::-webkit-scrollbar { display: none; }
   .dchip {
     flex: none; border: none; cursor: pointer;
@@ -134,9 +150,11 @@
   .dgrid.pt { padding-top: 18px; }
   .dcell {
     background: #fff; border-radius: 14px;
-    aspect-ratio: .86; padding: 10px;
+    /* 固定高度：不用 aspect-ratio（部分手机浏览器按图片内容撑高，衣服卡会比+号卡高） */
+    height: 124px; padding: 10px;
     cursor: pointer; position: relative;
     border: 2px solid transparent;
+    overflow: hidden;
   }
   .dcell.on {
     border: 3px solid transparent;
@@ -179,7 +197,7 @@
       <button class="iconbtn" id="btnFav" title="收藏">★</button>
     </div>
 
-    <button class="btn ai-pill ai-match" id="btnAI">✦ AI 搭配我的衣服</button>
+    <button class="btn ai-pill ai-match" id="btnAI"><span class="star">✦</span> AI 搭配我的衣服</button>
     <div class="gen-loading" id="genLoading"><div class="spinner"></div><div class="gen-text">✦ 穿搭生成中，请耐心等待…</div></div>
   </div>
 
@@ -694,7 +712,7 @@
     const btn = $("#btnAI");
     if (btn.disabled) return;            /* 搭配请求进行中，连点不再重复调用付费模型 */
     btn.disabled = true;
-    btn.textContent = "✦ AI 搭配中…";
+    btn.innerHTML = '<span class="star">✦</span> AI 搭配中…';
     try {
       const r = await AI.recommend(wardrobeItems(), around);
       if (r.items && r.items.length) {
@@ -710,7 +728,7 @@
       }
     } finally {
       btn.disabled = false;
-      btn.innerHTML = "✦ AI 搭配我的衣服";
+      btn.innerHTML = '<span class="star">✦</span> AI 搭配我的衣服';
     }
   }
 
@@ -748,6 +766,35 @@
     $("#paneOutfit").classList.toggle("hidden", t !== "outfit");
     $("#paneOutfit").style.display = t === "outfit" ? "flex" : "none";
   }));
+
+  /* ---------- 抽屉把手拖拽：按住横线上拉看更多衣服，下拉回到默认高度为极限 ---------- */
+  const stageEl = $(".stage");
+  const grabEl = $(".drawer .grab");
+  const stageMax = () => Math.round(window.innerHeight * 0.56);  /* 默认高度 = CSS 的 56dvh */
+  const stageMin = () => Math.round(window.innerHeight * 0.24);  /* 拉满时模特区收到 24dvh */
+  let gDrag = null;
+  grabEl.addEventListener("pointerdown", e => {
+    gDrag = { y: e.clientY, h: stageEl.getBoundingClientRect().height };
+    stageEl.classList.remove("snap");
+    grabEl.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  grabEl.addEventListener("pointermove", e => {
+    if (!gDrag) return;
+    const h = Math.min(stageMax(), Math.max(stageMin(), gDrag.h + (e.clientY - gDrag.y)));
+    stageEl.style.height = h + "px";
+  });
+  const gEnd = () => {
+    if (!gDrag) return;
+    gDrag = null;
+    /* 松手吸附到更近的一端 */
+    const h = stageEl.getBoundingClientRect().height;
+    const to = (h - stageMin() < stageMax() - h) ? stageMin() : stageMax();
+    stageEl.classList.add("snap");
+    stageEl.style.height = to + "px";
+  };
+  grabEl.addEventListener("pointerup", gEnd);
+  grabEl.addEventListener("pointercancel", gEnd);
 
   function renderAll() {
     renderStage(); renderOutfitGrid(); renderMineGrid(); renderModelBadge(); syncFav(); syncAIBtn();
