@@ -23,6 +23,12 @@
   .hero .side img { aspect-ratio: 1.1; }
   .hero .ocover { border-radius: var(--r-xl); aspect-ratio: auto; object-fit: cover; height: 100%; }
 
+  /* 替换玩法提示：轻量灰字，不抢大图版面 */
+  .swap-hint {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    font-size: 12.5px; color: var(--muted);
+    margin-top: 12px;
+  }
   .pieces { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 20px var(--pad); }
   .piece {
     background: var(--card); border-radius: var(--r-md);
@@ -84,6 +90,10 @@
 
   <div class="scroll-body">
     <div class="hero rise" id="hero"></div>
+    <p class="swap-hint rise d1">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9a8 8 0 0 1 14-3.5L20 8"/><path d="M20 3v5h-5"/><path d="M20 15a8 8 0 0 1-14 3.5L4 16"/><path d="M4 21v-5h5"/></svg>
+      轻点图中单品，可替换成同类款
+    </p>
     <div class="pieces rise d1" id="pieces"></div>
   </div>
 
