@@ -38,7 +38,13 @@ const Store = {
       history: [],                       // 试衣历史 {id,outfitId,items,scene,time}
       models: PRESET_MODELS.map(p => ({ ...p, dataUrl: null })),
       curModel: "m1",
-      profile: { gender: "", job: "", pref: [] },
+      profile: {
+        gender: "", job: "", pref: [],            // 引导问卷：性别 / 职业 / 服装类型（女装男装）
+        height: "", size: "", bodyType: "",       // 造型档案（设置页收集，现阶段仅存储展示）
+        budgetMin: "", budgetMax: "", styles: [], colorTypes: [],
+      },
+      account: { nick: "", avatar: "", email: "" }, // 账号资料（本地演示，真鉴权接入前无服务端）
+      privacyOk: true,                              // 设置页「隐私协议授权」开关
       onboarded: false,
     };
   },

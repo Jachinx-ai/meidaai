@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>账号与安全 · 美搭</title>
+<link rel="stylesheet" href="css/base.css">
+<style>
+  .pagehead .ptitle { flex: 1; text-align: center; font-size: 17px; font-weight: 800; }
+
+  .sgroup {
+    background: var(--card); border-radius: var(--r-lg);
+    box-shadow: var(--shadow-card);
+    margin: 0 var(--pad) 14px; padding: 4px 0;
+    overflow: hidden;
+  }
+  .srow {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    min-height: 58px; padding: 14px 18px;
+    background: none; border: none; text-align: left;
+    font-family: var(--font-body); font-size: 16px; color: var(--ink);
+    cursor: pointer;
+  }
+  .srow:active { background: var(--fill); }
+  .srow .sl { font-weight: 600; }
+  .srow .sv {
+    margin-left: auto; color: var(--ink-2); font-size: 15px;
+    max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
+  }
+  .srow .sv.add { color: #c2c2c6; }
+  .chev { flex: none; color: #c9c9cd; }
+
+  .mini-avatar {
+    margin-left: auto; flex: none;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--ink); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900;
+    overflow: hidden;
+  }
+  .mini-avatar img { width: 100%; height: 100%; object-fit: cover; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="pagehead">
+    <button class="iconbtn" onclick="history.length > 1 ? history.back() : location.href='settings.html'"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5 8 12l6.5 7"/></svg></button>
+    <span class="ptitle">账号与安全</span>
+    <span style="width:44px"></span>
+  </div>
+
+  <div class="scroll-body" style="padding:12px 0 34px">
+
+    <div class="sgroup rise">
+      <button class="srow" onclick="$('#avatarFile').click()">
+        <span class="sl">个人资料照片</span>
+        <span class="mini-avatar" id="miniAvatar"></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
+      </button>
+      <button class="srow" onclick="openNickSheet()">
+        <span class="sl">昵称</span>
+        <span class="sv" id="nickVal"></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
+      </button>
+      <button class="srow" onclick="toast('上线后支持邮箱账号管理')">
+        <span class="sl">登录邮箱</span>
+        <span class="sv add" id="emailVal">未绑定</span>
+      </button>
+      <button class="srow" onclick="toast('上线后开放微信绑定')">
+        <span class="sl">微信</span>
+        <span class="sv add">未绑定</span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
+      </button>
+    </div>
+
+    <div class="sgroup rise d1">
+      <button class="srow" style="justify-content:center;color:var(--danger);font-weight:700" onclick="openModal('modalLogout')">退出登录</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="avatarFile" accept="image/*" class="hidden">
+
+<!-- 修改昵称 -->
+<div class="sheet-mask" id="mask-sheetNick" onclick="closeSheet('sheetNick')"></div>
+<div class="sheet" id="sheetNick">
+  <div class="sheet-grab"></div>
+  <div class="sheet-title">修改昵称
+    <button class="sheet-x" onclick="closeSheet('sheetNick')">✕</button>
+  </div>
+  <div class="field"><input id="nickIn" type="text" maxlength="12" placeholder="请输入昵称（12 字以内）"></div>
+  <button class="btn btn-primary btn-block" style="margin-top:22px" onclick="saveNick()">保存</button>
+</div>
+
+<!-- 退出登录确认 -->
+<div class="modal-mask" id="modalLogout">
+  <div class="modal">
+    <h3>退出登录</h3>
+    <p>退出后可重新一键登录，衣橱与试衣数据将保留在本机。</p>
+    <div style="display:flex;gap:12px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modalLogout')">取消</button>
+      <button class="btn btn-primary" style="flex:1" onclick="location.href='login.html'">退出</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+  renderStatusbar();
+
+  const DEFAULT_NICK = "时髦精本人";
+
+  function acc() { return Store.get().account || {}; }
+  function saveAcc(patch) {
+    const ok = Store.set({ account: { ...acc(), ...patch } });
+    render();
+    return ok;
+  }
+
+  function render() {
+    const a = acc();
+    const nick = a.nick || DEFAULT_NICK;
+    $("#nickVal").textContent = nick;
+    $("#miniAvatar").innerHTML = a.avatar ? `<img src="${a.avatar}" alt="">` : nick[0];
+    if (a.email) {
+      $("#emailVal").textContent = a.email;
+      $("#emailVal").classList.remove("add");
+    }
+  }
+
+  /* 头像：选图 → 压缩 → 存本地 */
+  $("#avatarFile").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const small = await compressImage(reader.result, 400);
+      const ok = saveAcc({ avatar: small });
+      if (ok !== false) toast("头像已更新");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  });
+
+  function openNickSheet() {
+    $("#nickIn").value = acc().nick || DEFAULT_NICK;
+    openSheet("sheetNick");
+  }
+  function saveNick() {
+    const v = $("#nickIn").value.trim();
+    if (!v) { toast("昵称不能为空"); return; }
+    saveAcc({ nick: v });
+    closeSheet("sheetNick");
+    toast("已保存");
+  }
+
+  render();
+</script>
+</body>
+</html>

@@ -13,7 +13,9 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 26px; font-weight: 900;
     border: 3px solid #fff; box-shadow: var(--shadow-card);
+    overflow: hidden;
   }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
   .uname { font-size: 21px; font-weight: 900; }
   .usub { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
 
@@ -97,13 +99,13 @@
 <div class="app">
 
   <div class="user-row">
-    <div class="avatar rise">时</div>
+    <div class="avatar rise" id="avatar">时</div>
     <div class="rise d1">
-      <div class="uname">时髦精本人</div>
+      <div class="uname" id="uname">时髦精本人</div>
       <div class="usub" id="usub"></div>
     </div>
     <span class="grow"></span>
-    <button class="iconbtn rise d1" onclick="openModal('modalReset')">⚙</button>
+    <button class="iconbtn rise d1" onclick="location.href='settings.html'">⚙</button>
   </div>
 
   <div class="seg rise d2">
@@ -124,18 +126,6 @@
   </div>
 </div>
 
-<!-- 设置：重置演示数据 -->
-<div class="modal-mask" id="modalReset">
-  <div class="modal">
-    <h3>重置演示数据</h3>
-    <p>将清空衣橱、收藏、试衣历史、上传的照片，回到全新用户状态。</p>
-    <div style="display:flex;gap:12px">
-      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modalReset')">取消</button>
-      <button class="btn btn-primary" style="flex:1" onclick="resetDemoData()">重置</button>
-    </div>
-  </div>
-</div>
-
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 <script>
@@ -144,6 +134,12 @@
 
   const p = Store.get().profile;
   $("#usub").textContent = [p.gender, p.job].filter(Boolean).join(" · ") || "点右侧设置完善资料";
+
+  /* 昵称/头像来自设置页的账号资料，没设置过用默认 */
+  const acc = Store.get().account || {};
+  const nick = acc.nick || "时髦精本人";
+  $("#uname").textContent = nick;
+  $("#avatar").innerHTML = acc.avatar ? `<img src="${acc.avatar}" alt="">` : nick[0];
 
   $$(".seg button").forEach(b => b.addEventListener("click", () => {
     $$(".seg button").forEach(x => x.classList.remove("on"));

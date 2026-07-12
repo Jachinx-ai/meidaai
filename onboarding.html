@@ -248,7 +248,8 @@
     if (!navOk()) return;
     Store.set({
       wardrobe: [...picked],
-      profile: answers,
+      /* 合并而非整体替换：设置页收集的造型档案字段（身高/尺码等）不被问卷覆盖掉 */
+      profile: { ...Store.get().profile, ...answers },
       onboarded: true,
     });
     toast("衣橱创建成功");
@@ -257,7 +258,7 @@
   /* 一件都没有也能完成引导：空衣橱由 Store 兜底成基础款 */
   $("#btnSkipItems").addEventListener("click", () => {
     if (!navOk()) return;
-    Store.set({ wardrobe: [], profile: answers, onboarded: true });
+    Store.set({ wardrobe: [], profile: { ...Store.get().profile, ...answers }, onboarded: true });
     toast("已为你准备了基础衣橱");
     setTimeout(() => location.href = "home.html", 600);
   });

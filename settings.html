@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>设置 · 美搭</title>
+<link rel="stylesheet" href="css/base.css">
+<style>
+  .pagehead .ptitle { flex: 1; text-align: center; font-size: 17px; font-weight: 800; }
+
+  /* 分组卡片与设置行 */
+  .sgroup {
+    background: var(--card); border-radius: var(--r-lg);
+    box-shadow: var(--shadow-card);
+    margin: 0 var(--pad) 14px; padding: 4px 0;
+    overflow: hidden;
+  }
+  .ghead { display: flex; align-items: center; gap: 9px; padding: 18px 18px 4px; font-size: 16.5px; font-weight: 800; }
+  .ghead svg { width: 19px; height: 19px; }
+  .srow {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    min-height: 54px; padding: 14px 18px;
+    background: none; border: none; text-align: left;
+    font-family: var(--font-body); font-size: 16px; color: var(--ink);
+    cursor: pointer;
+  }
+  .srow:active { background: var(--fill); }
+  .srow svg.ric { width: 21px; height: 21px; flex: none; }
+  .srow .sl { font-weight: 600; }
+  .srow .ssub { font-size: 12.5px; color: var(--muted); margin-top: 5px; font-weight: 400; }
+  .srow .sv {
+    margin-left: auto; color: var(--ink-2); font-size: 15px;
+    max-width: 52%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
+  }
+  .srow .sv.add { color: #c2c2c6; }
+  .chev { flex: none; color: #c9c9cd; }
+  .frow { padding-left: 48px; }   /* 档案字段行：向组头图标后对齐 */
+
+  /* iOS 式开关 */
+  .switch { position: relative; width: 51px; height: 31px; flex: none; margin-left: auto; }
+  .switch input {
+    appearance: none; -webkit-appearance: none; margin: 0;
+    width: 100%; height: 100%; border-radius: 999px;
+    background: #e3e3e0; cursor: pointer; transition: background .2s ease;
+  }
+  .switch input:checked { background: var(--ink); }
+  .switch input::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 27px; height: 27px; border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.18);
+    transition: transform .2s ease;
+  }
+  .switch input:checked::after { transform: translateX(20px); }
+
+  /* 编辑 sheet 里的选项 */
+  .group-label { font-size: 14px; color: var(--muted); font-weight: 600; margin: 12px 2px 0; }
+  #sheetBody .field { min-width: 0; }
+  #sheetBody .field input { min-width: 0; }
+  .picks-wrap { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .picks-wrap .pick { padding: 11px 18px; font-size: 14.5px; }
+
+  /* 关于 / 条款 sheet */
+  .about-brand { text-align: center; font-size: 30px; font-weight: 900; margin-top: 6px; }
+  .about-ver { text-align: center; font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .about-intro { text-align: center; font-size: 14.5px; color: var(--ink-2); margin: 18px 0 8px; line-height: 1.8; }
+  .terms p { font-size: 14px; color: var(--ink-2); line-height: 1.9; margin-bottom: 12px; }
+  .terms b { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="pagehead">
+    <button class="iconbtn" onclick="history.length > 1 ? history.back() : location.href='profile.html'"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5 8 12l6.5 7"/></svg></button>
+    <span class="ptitle">设置</span>
+    <span style="width:44px"></span>
+  </div>
+
+  <div class="scroll-body" style="padding:12px 0 34px">
+
+    <!-- 账号与安全 -->
+    <div class="sgroup rise">
+      <button class="srow" onclick="location.href='account.html'">
+        <svg class="ric" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18.5c1.3-2.4 3.2-3.5 5.5-3.5s4.2 1.1 5.5 3.5"/></svg>
+        <span>
+          <span class="sl">账号与安全</span>
+          <span class="ssub" style="display:block">头像、昵称、登录邮箱、微信绑定</span>
+        </span>
+        <span class="sv"></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
+      </button>
+    </div>
+
+    <!-- 我的造型档案 -->
+    <div class="sgroup rise d1">
+      <div class="ghead">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 5.5 4 4L8.5 19.5 4 21l1.5-4.5z"/><path d="m12.5 7.5 4 4"/></svg>
+        我的造型档案
+      </div>
+      <div id="fieldRows"></div>
+    </div>
+
+    <!-- 关于与协议 -->
+    <div class="sgroup rise d2">
+      <button class="srow" onclick="openSheet('sheetAbout')">
+        <svg class="ric" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11.5V16"/></svg>
+        <span class="sl">关于美搭</span><span class="sv"></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
+      </button>
+      <button class="srow" onclick="toast('感谢鼓励！正式上架后记得给美搭五星 ❤️')">
+        <svg class="ric" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zM7 11l4.2-7.2A2.3 2.3 0 0 1 13.5 6v4H19a2 2 0 0 1 2 2.4l-1.2 5.8a2 2 0 0 1-2 1.8H7"/></svg>
+        <span class="sl">鼓励一下</span><span class="sv"></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
+      </button>
+      <button class="srow" onclick="openSheet('sheetContact')">
+        <svg class="ric" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="13" width="4" height="6.5" rx="2"/><rect x="17" y="13" width="4" height="6.5" rx="2"/></svg>
+        <span class="sl">联系我们</span><span class="sv"></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
+      </button>
+      <button class="srow" onclick="openSheet('sheetTerms')">
+        <svg class="ric" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9.5 12h5M9.5 15.5h5"/></svg>
+        <span class="sl">美搭服务条款</span><span class="sv"></span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
+      </button>
+      <div class="srow" style="cursor:default">
+        <svg class="ric" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        <span class="sl">隐私协议授权</span>
+        <label class="switch"><input type="checkbox" id="swPrivacy"></label>
+      </div>
+    </div>
+
+    <!-- 重置演示数据 -->
+    <div class="sgroup rise d3">
+      <button class="srow" style="justify-content:center;color:var(--danger);font-weight:700" onclick="openModal('modalReset')">重置演示数据</button>
+    </div>
+  </div>
+</div>
+
+<!-- 造型档案编辑 sheet（内容按字段动态填充） -->
+<div class="sheet-mask" id="mask-sheetEdit" onclick="closeSheet('sheetEdit')"></div>
+<div class="sheet" id="sheetEdit">
+  <div class="sheet-grab"></div>
+  <div class="sheet-title" id="sheetTitle">编辑
+    <button class="sheet-x" onclick="closeSheet('sheetEdit')">✕</button>
+  </div>
+  <div id="sheetBody"></div>
+</div>
+
+<!-- 关于美搭 -->
+<div class="sheet-mask" id="mask-sheetAbout" onclick="closeSheet('sheetAbout')"></div>
+<div class="sheet" id="sheetAbout">
+  <div class="sheet-grab"></div>
+  <div class="about-brand">美搭</div>
+  <div class="about-ver">v0.9 · 演示版</div>
+  <p class="about-intro">把衣橱装进手机，用 AI 试穿每一套搭配。<br>电子衣橱 · AI 试穿 · 智能搭配推荐</p>
+</div>
+
+<!-- 联系我们（占位邮箱，上线前替换为正式客服邮箱） -->
+<div class="sheet-mask" id="mask-sheetContact" onclick="closeSheet('sheetContact')"></div>
+<div class="sheet" id="sheetContact">
+  <div class="sheet-grab"></div>
+  <div class="sheet-title">联系我们
+    <button class="sheet-x" onclick="closeSheet('sheetContact')">✕</button>
+  </div>
+  <p style="text-align:center;font-size:15px;color:var(--ink-2);line-height:2;padding-bottom:8px">
+    客服邮箱：<b style="color:var(--ink)">support@meida.app</b><br>
+    工作日 9:00–18:00 内回复
+  </p>
+</div>
+
+<!-- 服务条款（演示版占位文本，上线前替换为法务定稿） -->
+<div class="sheet-mask" id="mask-sheetTerms" onclick="closeSheet('sheetTerms')"></div>
+<div class="sheet" id="sheetTerms">
+  <div class="sheet-grab"></div>
+  <div class="sheet-title">美搭服务条款
+    <button class="sheet-x" onclick="closeSheet('sheetTerms')">✕</button>
+  </div>
+  <div class="terms">
+    <p><b>1. 服务说明</b>　美搭为你提供电子衣橱、AI 试穿与搭配推荐服务。当前版本为演示版，功能与条款以正式上线版本为准。</p>
+    <p><b>2. 你的内容</b>　你上传的照片与衣物图片仅用于生成试穿效果与搭配推荐，归你本人所有。</p>
+    <p><b>3. 数据存储</b>　演示阶段所有数据保存在你的设备本地，卸载或清除浏览器数据将导致数据丢失。</p>
+    <p><b>4. AI 生成内容</b>　试穿效果图由 AI 模型生成，仅供参考，可能与实际穿着效果存在差异。</p>
+    <p><b>5. 合理使用</b>　请勿上传违法、侵权或含他人肖像且未经授权的图片。</p>
+    <p><b>6. 条款更新</b>　正式版上线时我们将发布完整的服务条款与隐私政策，并在应用内提示你确认。</p>
+  </div>
+</div>
+
+<!-- 关闭隐私授权确认 -->
+<div class="modal-mask" id="modalPrivacy">
+  <div class="modal">
+    <h3>关闭隐私协议授权</h3>
+    <p>关闭后将无法使用 AI 试穿、智能搭配等需要照片处理的功能。确定关闭吗？</p>
+    <div style="display:flex;gap:12px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modalPrivacy')">取消</button>
+      <button class="btn btn-primary" style="flex:1" onclick="confirmPrivacyOff()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重置演示数据确认 -->
+<div class="modal-mask" id="modalReset">
+  <div class="modal">
+    <h3>重置演示数据</h3>
+    <p>将清空衣橱、收藏、试衣历史、上传的照片，回到全新用户状态。</p>
+    <div style="display:flex;gap:12px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modalReset')">取消</button>
+      <button class="btn btn-primary" style="flex:1" onclick="resetDemoData()">重置</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+  renderStatusbar();
+
+  const CHEV = '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>';
+
+  function saveProfile(patch) {
+    Store.set({ profile: { ...Store.get().profile, ...patch } });
+    renderRows();
+  }
+
+  /* 造型档案字段（顺序即展示顺序）：现阶段仅收集存储，暂不影响 AI 能力 */
+  const FIELDS = [
+    { key: "gender", label: "性别", type: "single", opts: ["女性", "男性", "不愿透露"],
+      read: p => p.gender || "", save: v => saveProfile({ gender: v }) },
+    { key: "job", label: "职业", type: "job",
+      read: p => p.job || "", save: v => saveProfile({ job: v }) },
+    { key: "pref", label: "服装类型", type: "multi", opts: ["女装", "男装"], min: 1,
+      read: p => (p.pref || []).join("、"), cur: p => p.pref || [], save: v => saveProfile({ pref: v }) },
+    { key: "height", label: "身高", type: "number", placeholder: "请输入身高", unit: "cm", lo: 100, hi: 250,
+      read: p => p.height ? p.height + "cm" : "", cur: p => p.height || "", save: v => saveProfile({ height: v }) },
+    { key: "size", label: "身材尺码", type: "single", opts: ["XS", "S", "M", "L", "XL", "XXL"],
+      read: p => p.size || "", save: v => saveProfile({ size: v }) },
+    { key: "bodyType", label: "身材体型", type: "single", opts: ["偏瘦", "匀称", "微胖", "丰满", "健硕"],
+      read: p => p.bodyType || "", save: v => saveProfile({ bodyType: v }) },
+    { key: "budget", label: "购买区间", type: "range",
+      read: p => p.budgetMin && p.budgetMax ? `¥${p.budgetMin}–${p.budgetMax}` : "" },
+    { key: "styles", label: "风格喜好", type: "multi", opts: ["通勤", "休闲", "运动", "约会", "街头", "复古", "极简", "甜美"],
+      read: p => (p.styles || []).join("、"), cur: p => p.styles || [], save: v => saveProfile({ styles: v }) },
+    { key: "colorTypes", label: "色彩类型", type: "multi", opts: ["黑白灰", "大地色系", "莫兰迪低饱和", "明亮色系", "粉嫩色系", "深色系"],
+      read: p => (p.colorTypes || []).join("、"), cur: p => p.colorTypes || [], save: v => saveProfile({ colorTypes: v }) },
+  ];
+
+  function renderRows() {
+    const p = Store.get().profile;
+    $("#fieldRows").innerHTML = FIELDS.map(f => {
+      const v = f.read(p);
+      return `<button class="srow frow" data-f="${f.key}">
+        <span class="sl" style="font-weight:500">${f.label}</span>
+        <span class="sv ${v ? "" : "add"}">${v || "添加"}</span>${CHEV}
+      </button>`;
+    }).join("");
+    $$("#fieldRows .srow").forEach(b => b.addEventListener("click", () => openField(b.dataset.f)));
+  }
+
+  const pickBtn = (v, on) => `<button class="pick ${on ? "active" : ""}" data-v="${v}">${v}</button>`;
+  const saveBtn = '<button class="btn btn-primary btn-block" style="margin-top:22px" id="btnSheetSave">保存</button>';
+
+  function openField(key) {
+    const f = FIELDS.find(x => x.key === key);
+    const p = Store.get().profile;
+    $("#sheetTitle").childNodes[0].textContent = f.label;
+    const body = $("#sheetBody");
+
+    if (f.type === "single" || f.type === "job") {
+      const cur = f.read(p);
+      body.innerHTML = f.type === "single"
+        ? `<div class="picks-wrap">${f.opts.map(o => pickBtn(o, o === cur)).join("")}</div>`
+        : Object.entries(JOBS).map(([g, list]) => `
+            <div class="group-label">${g}</div>
+            <div class="picks-wrap">${list.map(j => pickBtn(j, j === cur)).join("")}</div>`).join("");
+      $$("#sheetBody .pick").forEach(b => b.addEventListener("click", () => {
+        f.save(b.dataset.v);
+        closeSheet("sheetEdit");
+        toast("已保存");
+      }));
+
+    } else if (f.type === "multi") {
+      const cur = new Set(f.cur(p));
+      body.innerHTML = `<div class="picks-wrap">${f.opts.map(o => pickBtn(o, cur.has(o))).join("")}</div>${saveBtn}`;
+      $$("#sheetBody .pick").forEach(b => b.addEventListener("click", () => b.classList.toggle("active")));
+      $("#btnSheetSave").addEventListener("click", () => {
+        const v = $$("#sheetBody .pick.active").map(b => b.dataset.v);
+        if (f.min && v.length < f.min) { toast("至少选择一项"); return; }
+        f.save(v);
+        closeSheet("sheetEdit");
+        toast("已保存");
+      });
+
+    } else if (f.type === "number") {
+      body.innerHTML = `
+        <div class="field"><input id="numIn" type="number" inputmode="numeric" placeholder="${f.placeholder}" value="${f.cur(p)}">
+          <span style="color:var(--muted);font-size:15px">${f.unit}</span></div>${saveBtn}`;
+      $("#btnSheetSave").addEventListener("click", () => {
+        const raw = $("#numIn").value.trim();
+        if (!raw) { f.save(""); closeSheet("sheetEdit"); toast("已清除"); return; }
+        const n = +raw;
+        if (!Number.isInteger(n) || n < f.lo || n > f.hi) { toast(`请输入 ${f.lo}–${f.hi} 的整数`); return; }
+        f.save(String(n));
+        closeSheet("sheetEdit");
+        toast("已保存");
+      });
+
+    } else if (f.type === "range") {
+      body.innerHTML = `
+        <div class="row">
+          <div class="field grow"><input id="minIn" type="number" inputmode="numeric" placeholder="最低价" value="${p.budgetMin || ""}"></div>
+          <span style="color:var(--muted)">—</span>
+          <div class="field grow"><input id="maxIn" type="number" inputmode="numeric" placeholder="最高价" value="${p.budgetMax || ""}"></div>
+        </div>
+        <p style="font-size:12.5px;color:var(--muted);margin-top:10px">单次购买服饰的预算范围（元）</p>${saveBtn}`;
+      $("#btnSheetSave").addEventListener("click", () => {
+        const a = $("#minIn").value.trim(), b = $("#maxIn").value.trim();
+        if (!a && !b) { saveProfile({ budgetMin: "", budgetMax: "" }); closeSheet("sheetEdit"); toast("已清除"); return; }
+        const lo = +a, hi = +b;
+        if (!a || !b || !(lo >= 0) || !(hi > 0) || lo >= hi) { toast("请填写完整，且最低价小于最高价"); return; }
+        saveProfile({ budgetMin: String(lo), budgetMax: String(hi) });
+        closeSheet("sheetEdit");
+        toast("已保存");
+      });
+    }
+    openSheet("sheetEdit");
+  }
+
+  /* 隐私协议授权开关：关闭需确认；演示阶段仅保存状态，不实际拦截功能 */
+  const sw = $("#swPrivacy");
+  sw.checked = Store.get().privacyOk !== false;
+  sw.addEventListener("change", () => {
+    if (!sw.checked) {
+      sw.checked = true;               // 先弹确认，确认后再真正关闭
+      openModal("modalPrivacy");
+    } else {
+      Store.set({ privacyOk: true });
+      toast("已开启隐私协议授权");
+    }
+  });
+  function confirmPrivacyOff() {
+    Store.set({ privacyOk: false });
+    $("#swPrivacy").checked = false;
+    closeModal("modalPrivacy");
+    toast("已关闭隐私协议授权");
+  }
+
+  renderRows();
+</script>
+</body>
+</html>
