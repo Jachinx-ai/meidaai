@@ -10,7 +10,9 @@
 密钥在 server/.env（不进 git）；换模型只改 server/ai/config.js 的 MODELS；提示词在 server/ai/prompts.js。
 
 - ✅ 做：页面 UI、真实交互、轻量后端 AI 接口层（占位实现，接口契约固定）
-- ❌ 不做：登录鉴权、数据库（数据存 localStorage）、自己训练模型
+- ❌ 不做：数据库（业务数据存 localStorage）、自己训练模型
+- 登录 = 邮箱验证码（无密码，登录即注册，`server/auth.js`；用户表存 server/data/users.json 不入 git；
+  邮件服务未接入前验证码走 devCode 直发演示）。微信登录因需企业主体暂缓，account 里留了绑定位
 - 团队成员都通过 AI 助手改代码（没有人手写代码），所以**代码要简单直白，改动要克制**
 - 产品设计由项目负责人在 Figma 上出图，AI 依据设计图/口头描述改页面
 
@@ -54,7 +56,8 @@
 
 ```
 index.html          总览页（桌面演示用，手机壳网格展示全部页面）
-login.html          一键登录；其他手机号登录=弹层输手机号+短信验证码 → signup.html（邮箱注册）
+login.html          邮箱验证码登录（无密码登录即注册，走 /api/auth/*；后端不在线=演示模式任意码可登）
+                    signup.html 已弃用、不再被链接
                   → onboarding.html（4步引导：性别/职业/偏好/选单品）→ home.html
 home.html           首页「灵感试穿」：场景chips + 搭配卡（纯图片，左下收藏/右下试穿）→ tryon / outfit-detail
 tryon.html          模特试穿：?outfit=oX / ?item=tXX / ?items=a,b,c；抽屉两tab（我的衣服在前默认选中/穿搭在后），

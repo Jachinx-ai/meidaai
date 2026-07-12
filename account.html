@@ -103,7 +103,7 @@
     <p>退出后可重新一键登录，衣橱与试衣数据将保留在本机。</p>
     <div style="display:flex;gap:12px">
       <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modalLogout')">取消</button>
-      <button class="btn btn-primary" style="flex:1" onclick="location.href='login.html'">退出</button>
+      <button class="btn btn-primary" style="flex:1" onclick="doLogout()">退出</button>
     </div>
   </div>
 </div>
@@ -157,6 +157,12 @@
     saveAcc({ nick: v });
     closeSheet("sheetNick");
     toast("已保存");
+  }
+
+  /* 退出登录：清登录态（邮箱+token），昵称头像和衣橱数据保留在本机 */
+  function doLogout() {
+    Store.set({ account: { ...acc(), email: "", token: "" } });
+    location.href = "login.html";
   }
 
   render();

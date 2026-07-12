@@ -6,77 +6,46 @@
 <title>登录 · 美搭</title>
 <link rel="stylesheet" href="css/base.css">
 <style>
-  .login-body { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 32px; }
+  .login-body { flex: 1; display: flex; flex-direction: column; padding: 0 32px; }
   .applogo {
     width: 92px; height: 92px; border-radius: 26px;
     background: var(--ink); color: #fff;
     display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-display); font-size: 17px; line-height: 1.1;
+    font-size: 32px; font-weight: 900; line-height: 1.1;
     text-align: center; letter-spacing: .02em;
     margin: 96px auto 20px;
     box-shadow: var(--shadow-float);
   }
   .applogo em { font-style: normal; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .appname { font-family: var(--font-display); font-size: 30px; }
-  .appname .zh { font-family: var(--font-body); font-weight: 900; }
-  .phone-num { font-size: 32px; font-weight: 900; letter-spacing: .04em; margin-top: 78px; }
-  .phone-tip { font-size: 12.5px; color: var(--muted); margin: 8px 0 26px; }
-  .more-login { background: none; border: none; color: var(--muted); font-size: 15px; margin-top: 34px; cursor: pointer; }
+  .appname { font-size: 30px; font-weight: 900; text-align: center; }
+  .login-tip { font-size: 13px; color: var(--muted); text-align: center; margin: 10px 0 42px; }
   .login-foot { padding: 26px 32px calc(30px + env(safe-area-inset-bottom)); }
-  .oauth-btn { margin-bottom: 14px; font-size: 16px; }
 </style>
 </head>
 <body>
 <div class="app">
 
   <div class="login-body">
-    <div class="applogo rise" style="font-size:32px;font-weight:900;font-family:var(--font-body)">美<em>搭</em></div>
-    <div class="appname rise d1"><span class="zh">美搭</span></div>
+    <div class="applogo rise">美<em>搭</em></div>
+    <div class="appname rise d1">美搭</div>
+    <div class="login-tip rise d1">邮箱验证码登录，未注册将自动创建账号</div>
 
-    <div class="phone-num rise d2">193****7983</div>
-    <div class="phone-tip rise d2">天翼数字生活账号为您提供号码认证服务</div>
-
-    <button class="btn btn-primary btn-block rise d3" id="btnQuick">一键登录</button>
-    <div style="height:14px"></div>
-    <button class="btn btn-ghost btn-block rise d3" onclick="if(agreeOk())openSheet('sheetPhone')">其他手机号登录</button>
-
-    <button class="more-login rise d4" onclick="openSheet('sheetMore')">更多登录方式 ›</button>
+    <div class="field rise d2" style="margin-bottom:14px">
+      <input type="email" id="email" placeholder="请输入邮箱地址" autocomplete="email">
+    </div>
+    <div class="field rise d2" style="margin-bottom:22px">
+      <input type="tel" id="code" maxlength="6" placeholder="请输入邮箱验证码" inputmode="numeric">
+      <button class="field-act" id="btnSend">获取验证码</button>
+    </div>
+    <button class="btn btn-primary btn-block rise d3" id="btnLogin" disabled>登录</button>
   </div>
 
-  <div class="login-foot rise d5">
+  <div class="login-foot rise d4">
     <label class="agree">
       <input type="checkbox" class="checkbox" id="agreeChk">
-      <span>我已阅读并同意 <a href="javascript:;">用户协议</a>、<a href="javascript:;">个人信息保护政策</a>、<a href="javascript:;">账号规则</a> 和 <a href="javascript:;">天翼数字生活账号服务条款</a></span>
+      <span>我已阅读并同意 <a href="javascript:;">用户协议</a> 和 <a href="javascript:;">隐私政策</a>，邮箱仅用于账号登录，不会对外泄露</span>
     </label>
   </div>
-</div>
-
-<!-- 其他手机号登录 Sheet -->
-<div class="sheet-mask" id="mask-sheetPhone" onclick="closeSheet('sheetPhone')"></div>
-<div class="sheet" id="sheetPhone">
-  <div class="sheet-grab"></div>
-  <div class="sheet-title">手机号登录
-    <button class="sheet-x" onclick="closeSheet('sheetPhone')">✕</button>
-  </div>
-  <div class="field" style="margin-bottom:14px">
-    <input type="tel" id="phone" maxlength="11" placeholder="请输入手机号">
-  </div>
-  <div class="field" style="margin-bottom:20px">
-    <input type="tel" id="smsCode" maxlength="6" placeholder="请输入短信验证码">
-    <button class="field-act" id="sendSms">发送验证码</button>
-  </div>
-  <button class="btn btn-primary btn-block" id="btnPhoneLogin" disabled>登录</button>
-</div>
-
-<!-- 更多登录方式 Sheet -->
-<div class="sheet-mask" id="mask-sheetMore" onclick="closeSheet('sheetMore')"></div>
-<div class="sheet" id="sheetMore">
-  <div class="sheet-grab"></div>
-  <div class="sheet-title">用其他方式开始
-    <button class="sheet-x" onclick="closeSheet('sheetMore')">✕</button>
-  </div>
-  <button class="btn btn-primary btn-block oauth-btn" onclick="loginGo('Apple')"> 以 Apple 账号继续</button>
-  <button class="btn btn-ghost btn-block oauth-btn" onclick="location.href='signup.html'">✉️ 以电子邮箱继续</button>
 </div>
 
 <script src="js/data.js"></script>
@@ -84,57 +53,103 @@
 <script>
   renderStatusbar();
 
+  const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+
   function agreeOk() {
     if (!$("#agreeChk").checked) { toast("请先勾选并同意底部协议"); return false; }
     return true;
   }
-  function loginGo(way) {
-    if (!agreeOk()) return;
-    toast(way + " 登录成功");
-    setTimeout(() => {
-      location.href = Store.get().onboarded ? "home.html" : "onboarding.html";
-    }, 700);
-  }
-  /* 手机号 + 短信验证码登录 */
-  function phoneCheck() {
-    $("#btnPhoneLogin").disabled = !($("#phone").value.length === 11 && $("#smsCode").value.length >= 4);
-  }
-  $("#phone").addEventListener("input", phoneCheck);
-  $("#smsCode").addEventListener("input", phoneCheck);
 
-  let smsCd = 0, smsTimer;
-  $("#sendSms").addEventListener("click", () => {
-    if (smsCd > 0) return;
-    if ($("#phone").value.length !== 11) { toast("请先输入 11 位手机号"); return; }
-    toast("验证码已发送");
-    smsCd = 60;
-    $("#sendSms").disabled = true;
-    smsTimer = setInterval(() => {
-      smsCd--;
-      $("#sendSms").textContent = smsCd > 0 ? `${smsCd}s 后重发` : "发送验证码";
-      if (smsCd <= 0) { clearInterval(smsTimer); $("#sendSms").disabled = false; }
+  /* 调后端；后端不在线（本地双击 HTML 打开）→ 抛 offline，走演示模式 */
+  async function api(path, body) {
+    let r;
+    try {
+      r = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      const e = new Error("offline"); e.offline = true; throw e;
+    }
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || "请求失败，请稍后再试");
+    return data;
+  }
+
+  let demoMode = false;   // 后端不在线时任意 6 位验证码可登录
+
+  function refreshLoginBtn() {
+    $("#btnLogin").disabled = !(isEmail($("#email").value.trim()) && /^\d{6}$/.test($("#code").value.trim()));
+  }
+  $("#email").addEventListener("input", refreshLoginBtn);
+  $("#code").addEventListener("input", refreshLoginBtn);
+
+  /* 获取验证码：60s 倒计时防连点 */
+  let cd = 0, cdTimer;
+  function startCd() {
+    cd = 60;
+    $("#btnSend").disabled = true;
+    cdTimer = setInterval(() => {
+      cd--;
+      $("#btnSend").textContent = cd > 0 ? `${cd}s 后重发` : "获取验证码";
+      if (cd <= 0) { clearInterval(cdTimer); $("#btnSend").disabled = false; }
     }, 1000);
-  });
-  $("#btnPhoneLogin").addEventListener("click", () => {
-    $("#btnPhoneLogin").textContent = "登录中…";
-    setTimeout(() => {
-      closeSheet("sheetPhone");
-      loginGoDirect();
-    }, 800);
+  }
+
+  $("#btnSend").addEventListener("click", async () => {
+    if (cd > 0) return;
+    if (!agreeOk()) return;
+    const email = $("#email").value.trim();
+    if (!isEmail(email)) { toast("请先输入正确的邮箱地址"); return; }
+    try {
+      const data = await api("/api/auth/send-code", { email });
+      startCd();
+      if (data.devCode) {
+        /* 邮件服务未接入：验证码直发，自动填入方便演示 */
+        $("#code").value = data.devCode;
+        refreshLoginBtn();
+        toast(`演示验证码 ${data.devCode} 已自动填入`);
+      } else {
+        toast("验证码已发送到邮箱");
+      }
+    } catch (e) {
+      if (e.offline) {
+        demoMode = true;
+        startCd();
+        toast("后端未启动，演示模式：任意 6 位验证码可登录");
+      } else {
+        toast(e.message);
+      }
+    }
   });
 
-  $("#btnQuick").addEventListener("click", () => {
+  /* 登录（未注册自动创建账号） */
+  $("#btnLogin").addEventListener("click", async () => {
     if (!agreeOk()) return;
-    const btn = $("#btnQuick");
-    btn.textContent = "登录中…";
-    setTimeout(() => loginGoDirect(), 800);
+    const email = $("#email").value.trim().toLowerCase();
+    const code = $("#code").value.trim();
+    const btn = $("#btnLogin");
+    btn.disabled = true; btn.textContent = "登录中…";
+    try {
+      let token = "";
+      if (!demoMode) {
+        const data = await api("/api/auth/login", { email, code });
+        token = data.token;
+      }
+      /* 登录态写进账号资料：账号页展示邮箱，重置演示数据时一并登出 */
+      const acc = Store.get().account || {};
+      Store.set({ account: { ...acc, email, token } });
+      toast("登录成功");
+      setTimeout(() => {
+        location.href = Store.get().onboarded ? "home.html" : "onboarding.html";
+      }, 500);
+    } catch (e) {
+      btn.textContent = "登录";
+      refreshLoginBtn();
+      toast(e.offline ? "网络异常，请稍后再试" : e.message);
+    }
   });
-  function loginGoDirect() {
-    toast("登录成功");
-    setTimeout(() => {
-      location.href = Store.get().onboarded ? "home.html" : "onboarding.html";
-    }, 500);
-  }
 </script>
 </body>
 </html>

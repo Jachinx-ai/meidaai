@@ -27,6 +27,9 @@ app.use(express.json({ limit: "30mb" }));
 /* 健康检查：前端用它判断后端是否在线 */
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
+/* 邮箱验证码登录（发码/登录，详见 server/auth.js） */
+app.use(require("./auth").router);
+
 /* 照片质检：创建模特前判断照片是否合格 */
 app.post("/api/validate-photo", async (req, res) => {
   try {
