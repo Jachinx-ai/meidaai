@@ -45,14 +45,10 @@
 
   /* 我的照片：空状态 */
   .my-empty { text-align: center; padding: 40px 40px 30px; }
-  .my-empty .figure {
-    width: 190px; height: 190px; margin: 0 auto 26px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 65% 40%, #ffd3ea 0%, transparent 58%), var(--fill);
-    display: flex; align-items: flex-end; justify-content: center;
-    overflow: hidden;
-  }
-  .my-empty .figure img { height: 85%; }
+  /* 配图自带紫色椭圆背景（白底jpg，与页面浅底融合），不再套圆形容器 */
+  /* multiply 放容器上（img 上会被 rise 动画的 transform 层叠上下文隔离失效）：白底融入页面浅底不露矩形边 */
+  .my-empty .figure { margin: 0 auto 22px; display: flex; justify-content: center; mix-blend-mode: multiply; }
+  .my-empty .figure img { height: 218px; }
   .my-empty h2 { font-size: 20px; font-weight: 900; }
   .my-empty p { color: var(--muted); font-size: 13.5px; line-height: 1.9; margin: 12px 0 24px; }
 
@@ -266,7 +262,7 @@
     if (!mine.length) {
       $("#paneMine").innerHTML = `
         <div class="my-empty">
-          <div class="figure rise"><img src="assets/ph/model.svg"></div>
+          <div class="figure rise"><img src="assets/ph/create-model-hero.jpg" alt="创建我的模特"></div>
           <h2 class="rise d1">一键上传我的试衣形象</h2>
           <p class="rise d2">上传个人照片，无限搭配你的数字衣橱<br>请不要上传违规图片，我们的安全过滤系统将进行拦截</p>
           <button class="btn btn-primary rise d3" style="padding:14px 34px" onclick="openSheet('sheetTip')">创建我的模特</button>
