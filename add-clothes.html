@@ -14,7 +14,7 @@
 
   /* 入口页（深色，像相机弹层） */
   .entry { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 var(--pad) calc(30px + env(safe-area-inset-bottom)); }
-  .entry .down { text-align: center; color: rgba(255,255,255,.5); font-size: 22px; margin-bottom: 26px; cursor: pointer; min-height: 44px; }
+  .entry .down { text-align: center; color: rgba(255,255,255,.5); font-size: 30px; margin-bottom: 26px; cursor: pointer; min-height: 44px; }
   .entry h1 { color: #fff; font-size: 24px; font-weight: 900; margin-bottom: 8px; }
   .entry .hint { color: rgba(255,255,255,.45); font-size: 13px; line-height: 1.8; margin-bottom: 18px; }
   .ways { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
@@ -29,6 +29,9 @@
   }
   .way:active { background: rgba(255,255,255,.16); }
   .way .ic { font-size: 26px; }
+  /* 未开发功能置灰（点击有"开发中"提示） */
+  .soon { opacity: .35; }
+  .soon:active { background: rgba(255,255,255,.09); }
   .mailbox {
     background: rgba(255,255,255,.09);
     border-radius: var(--r-lg);
@@ -50,13 +53,13 @@
     <div class="ways">
       <button class="way" id="wayAlbum"><span class="ic">🖼</span>相册导入</button>
       <button class="way" id="wayCam"><span class="ic">📷</span>拍照导入</button>
-      <button class="way" id="wayWeb"><span class="ic">🌐</span>网页提取</button>
+      <button class="way soon" id="wayWeb"><span class="ic">🌐</span>网页提取</button>
     </div>
-    <div class="mailbox">
+    <div class="mailbox soon" id="mailbox">
       <div class="t">✉️ 衣服商品链接</div>
       <div class="addr">
         <span>3yez2xfhbgamtnm@mail.aiwear.com</span>
-        <button class="copy" onclick="toast('邮箱地址已复制')">⧉</button>
+        <button class="copy">⧉</button>
       </div>
     </div>
     <input type="file" accept="image/*" id="fileInput" class="hidden">
@@ -90,10 +93,9 @@
   }
   $("#fileInput").addEventListener("change", onPick);
   $("#camInput").addEventListener("change", onPick);
-  $("#wayWeb").addEventListener("click", () => {
-    toast("已解析商品链接");
-    setTimeout(() => bgAdd(null), 600);
-  });
+  /* 网页提取/商品链接：功能未开发，点击只提示 */
+  $("#wayWeb").addEventListener("click", () => toast("网页提取还在开发中，敬请期待"));
+  $("#mailbox").addEventListener("click", () => toast("商品链接导入还在开发中，敬请期待"));
 </script>
 </body>
 </html>

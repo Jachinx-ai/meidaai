@@ -222,6 +222,7 @@ body {
   box-shadow: var(--shadow-float);
   text-decoration: none;
 }
+.tabbar a.fab { color: #fff; }   /* 提高优先级：+号纯白，不被 .tabbar a 的灰色盖掉 */
 .fab:active { transform: translateX(-50%) scale(.94); }
 
 /* ---------- 半屏抽屉 Sheet ---------- */

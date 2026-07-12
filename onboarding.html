@@ -18,8 +18,8 @@
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
-  /* stretch+fit-content：三个选项自动等宽（跟最宽的一个对齐） */
-  .picks { display: flex; flex-direction: column; align-items: stretch; width: fit-content; gap: 14px; margin-top: 30px; }
+  /* 各选项按内容自适应宽度（女性/男性文字等长自然等宽，比不愿透露稍窄） */
+  .picks { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-top: 30px; }
   .picks .pick { gap: 6px; }
   /* 选项图标与文字对齐 */
   .pick .pi {
