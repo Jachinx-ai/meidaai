@@ -18,10 +18,12 @@
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
-  .picks { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-top: 30px; }
+  /* stretch+fit-content：三个选项自动等宽（跟最宽的一个对齐） */
+  .picks { display: flex; flex-direction: column; align-items: stretch; width: fit-content; gap: 14px; margin-top: 30px; }
+  .picks .pick { gap: 6px; }
   /* 选项图标与文字对齐 */
   .pick .pi {
-    display: inline-flex; width: 22px; height: 22px;
+    display: inline-flex; width: 18px; height: 18px;
     align-items: center; justify-content: center;
     font-style: normal; line-height: 1; font-size: 18px;
   }
