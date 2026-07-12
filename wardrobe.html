@@ -17,6 +17,7 @@
     display: flex; align-items: center; justify-content: center;
     border: 2.5px solid transparent; padding: 10px;
     transition: border-color .15s ease;
+    font-size: 26px;   /* 圆圈里的兜底 emoji 尺寸 */
   }
   .catdot.on .cir { border-color: var(--ink); }
   .catdot .cir img { width: 100%; height: 100%; object-fit: contain; }
@@ -106,7 +107,7 @@
       return `
       <div class="catdot ${c === cat ? "on" : ""}" data-c="${c}">
         <div class="cir">
-          ${cover ? (cover.dataUrl ? `<img src="${cover.dataUrl}">` : itemImg(cover)) : (CAT_EMOJI[c] || "👕")}
+          ${c === "全部" ? "👕" : (cover ? (cover.dataUrl ? `<img src="${cover.dataUrl}">` : itemImg(cover)) : (CAT_EMOJI[c] || "👕"))}
           <span class="badge">${list.length}</span>
         </div>
         <span class="lbl">${c}</span>
