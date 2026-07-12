@@ -68,7 +68,7 @@ const AI = {
     return { image, items: [{ image, category: "上衣", name: "我的单品" }], mock: true };
   },
 
-  /* ---------- ①b 拆图分步版（上传卡片进度用） ---------- */
+  /* ---------- ①b 拆图分步版（单件重试/离线兜底用） ---------- */
 
   /* 识别照片里有哪些衣服（快）：{ items: [{category, description}] } */
   async detect(image) {
@@ -113,6 +113,16 @@ const AI = {
       }
     };
     await Promise.all([worker(), worker()]);
+  },
+
+  /* ---------- ①c 拆分（后台化）：提交任务 ----------
+     在线 → { jobId }：拆分在服务器继续跑，前端轮询 /api/segment/result 取回；
+     离线 → { local }：无后台队列，返回本地模拟结果，调用方即时入橱 */
+  async segmentStart(image) {
+    if (await this.available()) {
+      return await this._post("/api/segment/start", { image }, 30000);
+    }
+    return { local: { image, items: [{ image, category: "上衣", name: "我的单品" }], mock: true } };
   },
 
   /* ---------- ② 虚拟试穿 ----------

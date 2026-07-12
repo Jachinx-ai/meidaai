@@ -39,7 +39,7 @@ app.post("/api/validate-photo", async (req, res) => {
   }
 });
 
-/* 抠图：上传衣服照片 → 返回抠好图的衣服 */
+/* 抠图：上传衣服照片 → 返回抠好图的衣服（同步版，离线回退/兼容用） */
 app.post("/api/segment", async (req, res) => {
   try {
     res.json(await segment(req.body));
@@ -48,7 +48,7 @@ app.post("/api/segment", async (req, res) => {
   }
 });
 
-/* 拆图分步版（前端卡片进度用）：先识别出清单，再逐件生成 */
+/* 拆图分步版（单件重试/离线兜底用）：先识别出清单，再逐件生成 */
 app.post("/api/detect", async (req, res) => {
   try {
     res.json(await segment.detect(req.body));
@@ -62,6 +62,42 @@ app.post("/api/segment-one", async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+/* ---------- 拆分任务队列（上传拆分后台化）----------
+   拆分较慢；改成"提交即返回任务号"，生成在服务器继续跑，
+   前端提交后可离开页面，任意页面轮询取回结果写入衣橱。
+   内存版（符合本项目无数据库定位）：服务重启会丢未取走的结果。 */
+const segJobs = new Map();   // jobId -> { status:'pending'|'done'|'error', result?, error?, ts }
+let segJobSeq = 0;
+const SEG_JOB_TTL = 30 * 60 * 1000;   // 完成/失败的结果保留 30 分钟后清理
+
+function cleanSegJobs() {
+  const now = Date.now();
+  for (const [id, job] of segJobs) {
+    if (job.status !== "pending" && now - job.ts > SEG_JOB_TTL) segJobs.delete(id);
+  }
+}
+
+/* 提交拆分任务：立即返回 jobId，拆分在后台继续（不 await） */
+app.post("/api/segment/start", (req, res) => {
+  cleanSegJobs();
+  const jobId = `seg_${Date.now()}_${++segJobSeq}`;
+  const job = { status: "pending", ts: Date.now() };
+  segJobs.set(jobId, job);
+  segment(req.body)
+    .then((result) => { job.status = "done"; job.result = result; job.ts = Date.now(); })
+    .catch((e) => { job.status = "error"; job.error = e.message; job.ts = Date.now(); });
+  res.json({ jobId });
+});
+
+/* 查询拆分任务结果：pending / done(result) / error / missing(服务重启丢失) */
+app.post("/api/segment/result", (req, res) => {
+  const job = segJobs.get(req.body.jobId);
+  if (!job) return res.json({ status: "missing" });
+  if (job.status === "done") return res.json({ status: "done", result: job.result });
+  if (job.status === "error") return res.json({ status: "error", error: job.error });
+  res.json({ status: "pending" });
 });
 
 /* 试穿：模特照片 + 衣服列表 → 返回上身效果 */
