@@ -33,9 +33,11 @@
     border: 2.5px solid transparent;
     overflow: hidden;
     box-shadow: var(--shadow-card);
+    /* 顶部留固定空隙：无论浏览器怎么算卡片高度，人物头部都不会贴到描边 */
+    padding-top: 28px;
   }
   .preset.on { border-color: var(--ink); }
-  .preset img { max-height: 92%; }
+  .preset img { max-height: 100%; max-width: 100%; object-fit: contain; }
   .preset .nm {
     position: absolute; top: 10px; left: 12px;
     font-size: 12.5px; font-weight: 700; color: var(--ink-2);
