@@ -57,6 +57,16 @@
 
   .empty { text-align: center; color: var(--muted); padding: 70px 40px; font-size: 15px; line-height: 2; }
 
+  /* 单品图放大预览浮层：点图打开、点任意处关闭 */
+  .preview-mask {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0, 0, 0, .85);
+    display: none; align-items: center; justify-content: center;
+    padding: 28px;
+  }
+  .preview-mask.on { display: flex; }
+  .preview-mask img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 14px; }
+
   /* AI 识别中占位卡（上传后顶在网格最前，识别完成原地换成新单品） */
   .icard.scan { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 212px; cursor: default; }
   .scan-ring { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--fill); border-top-color: var(--ink); animation: spin .9s linear infinite; }
@@ -87,6 +97,9 @@
   </div>
 </div>
 
+<!-- 单品图放大预览 -->
+<div class="preview-mask" id="previewMask"><img id="previewImg" src="" alt="单品预览"></div>
+
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 <script src="js/ai.js"></script>
@@ -95,7 +108,16 @@
   renderTabbar("wardrobe");
 
   let cat = "全部";
-  let scanning = false;   /* 上传后 AI 识别中：网格最前显示占位卡 */
+  let localScan = false;   /* 离线/演示路径的即时识别态（在线走后台任务，见下方） */
+  /* 识别中占位卡：有本地即时识别 或 有后台拆分任务（跨页面持续）时显示 */
+  const isScanning = () => localScan || (Store.get().pendingSegments || []).length > 0;
+
+  /* 单品图放大预览 */
+  function openPreview(src) {
+    $("#previewImg").src = src;
+    $("#previewMask").classList.add("on");
+  }
+  $("#previewMask").addEventListener("click", () => $("#previewMask").classList.remove("on"));
   function renderCats() {
     const items = wardrobeItems();
     $("#catbar").innerHTML = CATS.map(c => {
@@ -117,21 +139,25 @@
 
   function renderItems() {
     const list = wardrobeItems().filter(i => cat === "全部" || i.cat === cat);
-    const scanCard = scanning ? `
+    const scanCard = isScanning() ? `
       <div class="icard scan">
         <div class="scan-ring"></div>
         <span class="ai-pill">AI 识别整理中…</span>
       </div>` : "";
-    $("#itemGrid").innerHTML = (list.length || scanning) ? scanCard + list.map(it => `
-      <div class="icard" data-go="${it.id}">
+    $("#itemGrid").innerHTML = (list.length || isScanning()) ? scanCard + list.map(it => `
+      <div class="icard">
         <button class="del" data-del="${it.id}">🗑</button>
-        <div class="imgwrap">${it.dataUrl ? `<img src="${it.dataUrl}">` : itemImg(it)}</div>
-        <button class="match-pill">去搭配</button>
+        <div class="imgwrap" data-view>${it.dataUrl ? `<img src="${it.dataUrl}">` : itemImg(it)}</div>
+        <button class="match-pill" data-go="${it.id}">去搭配</button>
       </div>`).join("")
       : `<div class="empty" style="grid-column:1/-1">这个分类还没有衣服<br>点底部 + 号上传第一件吧</div>`;
-    /* 点整卡或「去搭配」→ 带着这件衣服去 AI 搭配试穿 */
-    $$("[data-go]").forEach(c => c.addEventListener("click", () =>
-      location.href = `tryon.html?item=${c.dataset.go}`));
+    /* 只有「去搭配」按钮跳转搭配；点图片区域放大预览、不跳转 */
+    $$("[data-go]").forEach(b => b.addEventListener("click", () =>
+      location.href = `tryon.html?item=${b.dataset.go}`));
+    $$("[data-view]").forEach(w => w.addEventListener("click", () => {
+      const src = w.querySelector("img")?.src;
+      if (src) openPreview(src);
+    }));
     $$("[data-del]").forEach(b => b.addEventListener("click", e => {
       e.stopPropagation();
       delTarget = b.dataset.del;
@@ -161,55 +187,45 @@
 
   renderCats(); renderItems();
 
-  /* 识别进行中离开页面会静默丢弃这次已付费的识别结果：离开前弹原生确认拦一道
-     （beforeunload 在 iOS Safari 上可能不生效，属尽力而为的兜底） */
-  window.addEventListener("beforeunload", (e) => {
-    if (!scanning) return;
-    e.preventDefault();
-    e.returnValue = "";
-  });
+  /* 后台拆分任务在任意页面跑完写入衣橱后：本页在则实时刷新 */
+  window.addEventListener("segments-updated", () => { renderCats(); renderItems(); });
 
-  /* 从添加衣服页带回的上传：AI 识别/平铺/打标签，多件自动拆分后入橱 */
+  /* 从添加衣服页带回的上传：起后台拆分任务（可离开），拆完由全局轮询写入衣橱 */
   const pending = Store.get().pendingUpload;
   if (pending) {
-    /* 先清掉再识别：识别期间离开页面再回来，不会重复触发付费识别 */
+    /* 先清掉：识别期间离开本页再回来，不会重复触发 */
     Store.set({ pendingUpload: null });
-    scanning = true;
-    renderItems();
-    toast("上传成功，AI 正在识别整理…");
     (async () => {
-      let newItems = [];
       try {
         if (pending === "ph") {
-          await new Promise(r => setTimeout(r, 900));   /* 演示路径假延时 */
-          newItems = [{ id: "c" + Date.now(), name: "我的单品", cat: "上衣", ph: "tee", dataUrl: null }];
-        } else {
-          const r = await AI.segment(pending);
-          const list = (r.items && r.items.length) ? r.items : [{ image: r.image || pending, category: "上衣" }];
-          /* 生成图入橱前：裁白边+方形规整+压缩（trimToSquare），修复高瘦画布在方形卡片里显得极小 */
-          newItems = await Promise.all(list.map(async (d, i) => ({
-            id: "c" + Date.now() + "_" + i,
-            name: d.name || "我的单品",
-            cat: ["上衣", "下装", "鞋子", "连体裙"].includes(d.category) ? d.category : "上衣",
-            ph: "tee",
-            dataUrl: await trimToSquare(d.image || pending),
-            labels: d.labels || null,
-          })));
+          /* 演示占位路径：本地即时入橱 */
+          localScan = true; renderItems();
+          await new Promise(r => setTimeout(r, 900));
+          const item = { id: "c" + Date.now(), name: "我的单品", cat: "上衣", ph: "tee", dataUrl: null };
+          const saved = Store.set({ customItems: [item, ...Store.get().customItems] });
+          localScan = false; renderCats(); renderItems();
+          if (saved !== false) toast("已添加到衣橱");
+          return;
         }
-        const saved = Store.set({ customItems: [...newItems, ...Store.get().customItems] });   /* 新上传排最前 */
-        scanning = false;
-        renderCats(); renderItems();
-        /* 没存下时不报成功，让 Store.set 的存储警告留在屏上 */
-        if (newItems.length && saved !== false) {
-          toast(newItems.length > 1 ? `AI 拆分出 ${newItems.length} 件，已全部入橱` : "已添加到衣橱");
+        const r = await AI.segmentStart(pending);
+        if (r.jobId) {
+          /* 在线：后台任务已起，记下 jobId，用户可离开，全局轮询会落地结果 */
+          Store.set({ pendingSegments: [...(Store.get().pendingSegments || []), { jobId: r.jobId, ts: Date.now() }] });
+          renderItems();
+          toast("上传成功，AI 正在后台整理，可继续浏览");
+        } else if (r.local) {
+          /* 离线回退：本地即时出结果入橱 */
+          localScan = true; renderItems();
+          const items = await buildSegmentItems(r.local);
+          const saved = Store.set({ customItems: [...items, ...Store.get().customItems] });
+          localScan = false; renderCats(); renderItems();
+          if (saved !== false) toast(items.length > 1 ? `AI 拆分出 ${items.length} 件，已入橱` : "已添加到衣橱");
         }
-        return;
       } catch (e) {
-        console.warn("识别失败", e);
-        toast("识别失败，请重新上传");
+        console.warn("发起拆分失败", e);
+        localScan = false; renderItems();
+        toast("上传失败，请重新试一次");
       }
-      scanning = false;
-      renderCats(); renderItems();
     })();
   }
 </script>

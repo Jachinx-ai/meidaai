@@ -33,6 +33,7 @@ const Store = {
     return {
       wardrobe: [...STARTER_WARDROBE],   // 衣橱里的单品 id（新用户=基础款）
       customItems: [],                   // 用户上传的单品 {id,name,cat,dataUrl}
+      pendingSegments: [],               // 后台拆分任务 {jobId,ts}：提交后可离开，全局轮询完成后写入衣橱
       deletedItems: [],                  // 被删除的系统单品 id（其所在搭配全站隐藏）
       favorites: [],                     // 收藏的搭配 id
       history: [],                       // 试衣历史 {id,outfitId,items,scene,time}
@@ -303,6 +304,70 @@ function trimToSquare(dataUrl, maxW = 800, quality = 0.8) {
     img.src = dataUrl;
   });
 }
+
+/* ---------- 拆分任务全局轮询：上传拆分后台化 ----------
+   任何页面加载后都轮询未完成的拆分任务；完成即写入衣橱（customItems），
+   让用户提交上传后可离开当前页面，结果在后台跑完自动落地。 */
+async function buildSegmentItems(result) {
+  const list = (result.items && result.items.length)
+    ? result.items : [{ image: result.image, category: "上衣" }];
+  return await Promise.all(list.map(async (d, i) => ({
+    id: "c" + Date.now() + "_" + i + Math.random().toString(36).slice(2, 5),
+    name: d.name || "我的单品",
+    cat: ["上衣", "下装", "鞋子", "连体裙"].includes(d.category) ? d.category : "上衣",
+    ph: "tee",
+    /* 生成图入橱前裁白边+方形规整+压缩（trimToSquare） */
+    dataUrl: await trimToSquare(d.image || result.image),
+    labels: d.labels || null,
+  })));
+}
+
+let _segPolling = false;
+async function pollSegmentJobs() {
+  if (_segPolling) return;
+  const pend = Store.get().pendingSegments || [];
+  if (!pend.length) return;
+  _segPolling = true;
+  try {
+    const addItems = [], stillPending = [];
+    let changed = false;
+    for (const job of pend) {
+      let r;
+      try {
+        const resp = await fetch("/api/segment/result", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobId: job.jobId }),
+        });
+        r = resp.ok ? await resp.json() : { status: "pending" };
+      } catch { r = { status: "pending" }; }   /* 网络闪断：保留任务，下轮再试 */
+      if (r.status === "done") {
+        addItems.push(...await buildSegmentItems(r.result));
+        changed = true;
+      } else if (r.status === "error" || r.status === "missing") {
+        changed = true;   /* 失败或服务重启丢失：移除任务并提示 */
+        toast("有一次拆分未成功，请重新上传");
+      } else {
+        stillPending.push(job);
+      }
+    }
+    if (changed) {
+      const s = Store.get();
+      Store.set({
+        customItems: [...addItems, ...s.customItems],   /* 新入橱排最前 */
+        pendingSegments: stillPending,
+      });
+      if (addItems.length) {
+        toast(addItems.length > 1 ? `AI 拆分出 ${addItems.length} 件，已入橱` : "衣服已入橱");
+      }
+      window.dispatchEvent(new CustomEvent("segments-updated"));
+    }
+  } finally {
+    _segPolling = false;
+  }
+}
+/* 每页加载即查一次，之后每 3s 查一次（仅在有待处理任务时真正请求） */
+pollSegmentJobs();
+setInterval(pollSegmentJobs, 3000);
 
 const fmtTime = ts => {
   const d = new Date(ts);

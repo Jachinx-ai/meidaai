@@ -68,6 +68,16 @@ const AI = {
     return { image, items: [{ image, category: "上衣", name: "我的单品" }], mock: true };
   },
 
+  /* ---------- ① 拆分（后台化）：提交任务 ----------
+     在线 → { jobId }：拆分在服务器继续跑，前端轮询 /api/segment/result 取回；
+     离线 → { local }：无后台队列，返回本地模拟结果，调用方即时入橱 */
+  async segmentStart(image) {
+    if (await this.available()) {
+      return await this._post("/api/segment/start", { image }, 30000);
+    }
+    return { local: { image, items: [{ image, category: "上衣", name: "我的单品" }], mock: true } };
+  },
+
   /* ---------- ② 虚拟试穿 ----------
      返回 { image } —— image 为 null 时由页面用本地叠图合成兜底 */
   async tryon(modelImage, items) {
