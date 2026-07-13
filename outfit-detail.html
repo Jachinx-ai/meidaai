@@ -181,6 +181,7 @@
       const favs = Store.get().favorites;
       const on = favs.includes(o.id);
       Store.set({ favorites: on ? favs.filter(f => f !== o.id) : [...favs, o.id] });
+      if (!on) Track.send("favorite_add", { outfit: o.id });
       syncFav();
       /* 替换过单品后收藏存的仍是原搭配，文案说清楚 */
       const changed = items.join(",") !== o.items.join(",");

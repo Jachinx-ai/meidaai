@@ -16,11 +16,15 @@ const AI = {
     try {
       /* 生成类接口服务端要求登录：带上登录发的 token */
       const token = (Store.get().account || {}).token || "";
+      /* 会话号 + 当前页：让后端权威事件（生成成功/失败、配额拦截）能关联到会话/来源页 */
+      const sid = (typeof Track !== "undefined" && Track.sid) ? Track.sid() : "";
       const resp = await fetch(path, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(sid ? { "X-Sid": sid } : {}),
+          "X-Page": location.pathname.split("/").pop() || "",
         },
         body: JSON.stringify(body),
         signal: ctrl.signal,

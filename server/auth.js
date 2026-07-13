@@ -20,6 +20,23 @@ const express = require("express");
 
 const router = express.Router();
 const store = require("./store");
+const supa = require("./supabase");
+
+/* 埋点（即发即走，吞异常，绝不影响登录）。session_id 由前端 X-Sid 头带上。
+   waitUntil 保活：Vercel 上响应发出后写库仍能跑完，不丢登录/注册事件。 */
+let _waitUntil = null;
+try { ({ waitUntil: _waitUntil } = require("@vercel/functions")); } catch { /* 本地无此依赖 */ }
+function trackAuth(event, email, req, props = {}) {
+  try {
+    if (!supa.enabled) return;
+    const p = supa.insertEvent({
+      event, email,
+      session_id: (req.headers["x-sid"] || "").slice(0, 64) || null,
+      ua: req.headers["user-agent"], props,
+    }).catch(() => {});
+    if (_waitUntil) { try { _waitUntil(p); } catch { /* 非函数环境 */ } }
+  } catch { /* ignore */ }
+}
 
 const DATA_DIR = path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
@@ -167,6 +184,13 @@ router.post("/api/auth/login", async (req, res) => {
   }
   try { await store.del(`login:tries:${email}`); } catch {}
 
+  /* 首登判定（=注册）：优先 KV（serverless 可靠），否则用文件；判不出按老用户算，
+     宁可少记一次 signup 也不虚增。埋点用。 */
+  let isNew = false;
+  try {
+    isNew = store.backend === "upstash" ? !(await store.get(`user:${email}`)) : !loadUsers()[email];
+  } catch { /* 判不出就当老用户 */ }
+
   /* 用户记录只做簿记（token 本身无状态）：
      文件写失败（Vercel 只读盘）不阻断登录；配了 KV 顺带存一份 */
   try {
@@ -182,6 +206,9 @@ router.post("/api/auth/login", async (req, res) => {
       await store.set(`user:${email}`, u);
     }
   } catch (e) { console.warn("用户表 KV 写入失败（不影响登录）:", e.message); }
+
+  if (isNew) trackAuth("signup_success", email, req);
+  trackAuth("login_success", email, req, { returning: !isNew });
 
   res.json({ token: signToken(email), email });
 });

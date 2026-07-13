@@ -36,6 +36,38 @@ function requireLogin(req, res, next) {
   next();
 }
 
+/* Serverless 保活：Vercel 上响应发出后函数会被冻结，未 await 的后台 promise
+   （埋点写库、拆分任务）可能来不及跑完就被杀。用 @vercel/functions 的 waitUntil
+   把它们登记为"响应后仍要完成"。本地无此依赖时是普通后台 promise，行为不变。 */
+let vercelWaitUntil = null;
+try { ({ waitUntil: vercelWaitUntil } = require("@vercel/functions")); } catch { /* 本地无此依赖，正常 */ }
+function keepAlive(promise) {
+  const p = Promise.resolve(promise).catch(() => {});
+  if (vercelWaitUntil) { try { vercelWaitUntil(p); } catch { /* 非函数环境 */ } }
+  return p;
+}
+
+/* ---------- 埋点：后端权威事件（即发即走，绝不阻塞主流程）----------
+   关键结果类事件（登录/生成成功失败/配额拦截）在后端记，比前端可靠：
+   用户中途关页面也不漏，还能和计费口径对齐。写入 Supabase events 表，
+   未配库时 supa.insertEvent 抛错被吞、静默跳过。session_id 由前端经 X-Sid 头带上。
+   用 keepAlive 包住：Vercel 上响应发出后写库仍能跑完，不丢事件。 */
+function logEvent(event, ctx, props = {}) {
+  try {
+    if (!supa.enabled) return;
+    keepAlive(supa.insertEvent({ event, ...ctx, props }));
+  } catch { /* 埋点永不影响业务 */ }
+}
+/* 从请求里取上下文（登录接口用） */
+function track(event, req, props = {}) {
+  logEvent(event, {
+    email: req.userEmail || null,
+    session_id: (req.headers["x-sid"] || "").slice(0, 64) || null,
+    page: (req.headers["x-page"] || "").slice(0, 64) || null,
+    ua: req.headers["user-agent"],
+  }, props);
+}
+
 /* 每日配额：按 账号+日期 计数，环境变量 QUOTA_SPLIT_PER_DAY / QUOTA_TRYON_PER_DAY 可调，0=不限 */
 function quota(kind, defPerDay) {
   const label = { SPLIT: "拆图", TRYON: "试穿" }[kind] || kind;
@@ -47,6 +79,7 @@ function quota(kind, defPerDay) {
     try {
       const n = await store.incr(`quota:${kind}:${req.userEmail}:${day}`, 26 * 3600);
       if (n > limit) {
+        track("quota_block", req, { kind, limit });   /* 撞每日额度上限：付费意愿信号 */
         return res.status(429).json({ error: `今日${label}额度已用完（每天 ${limit} 次），明天再来吧` });
       }
     } catch (e) {
@@ -136,11 +169,8 @@ app.post("/api/segment-one", requireLogin, async (req, res) => {
    并发：每任务内限 2（原全局限 2；serverless 实例间本就无法全局限流，
    多任务同时撞 DashScope 限流由 segment.js 的退避重试兜底）。 */
 
-let vercelWaitUntil = null;
-try { ({ waitUntil: vercelWaitUntil } = require("@vercel/functions")); } catch { /* 本地无此依赖，正常 */ }
 function bgRun(promise) {
-  const p = promise.catch(e => console.warn("拆分任务后台异常:", e.message));
-  if (vercelWaitUntil) vercelWaitUntil(p);
+  keepAlive(promise.catch(e => console.warn("拆分任务后台异常:", e.message)));
 }
 
 const SEG_TTL = 1800;   // 秒：任务全家桶键的保留时长
@@ -183,12 +213,13 @@ async function processOne(jobId, image, target, i) {
   }
 }
 
-/* 整任务：识别 → 逐件生成（任务内并发 2） */
-async function processJob(jobId, image) {
+/* 整任务：识别 → 逐件生成（任务内并发 2）。ctx=提交者上下文，供埋点用 */
+async function processJob(jobId, image, ctx = {}) {
   let targets;
   try {
     ({ items: targets } = await segment.detect({ image }));
   } catch (e) {
+    logEvent("split_fail", ctx, { stage: "detect", error: (e.message || "").slice(0, 200) });
     await updateMeta(jobId, m => { m.status = "error"; m.error = e.message; });
     metaLocks.delete(jobId);
     return;
@@ -206,6 +237,10 @@ async function processJob(jobId, image) {
     }
   };
   await Promise.all([worker(), worker()]);
+  /* 整单尘埃落定：识别出几件、其中几件生成失败，一条事件涵盖（不逐件刷屏） */
+  const done = await store.get(jobKey(jobId));
+  const failed = (done && done.targets || []).filter(t => t.state === "fail").length;
+  logEvent("split_done", ctx, { items: targets.length, failed });
   metaLocks.delete(jobId);
 }
 
@@ -219,7 +254,12 @@ app.post("/api/segment/start", requireLogin, quota("SPLIT", 5), async (req, res)
   } catch (e) {
     return res.status(500).json({ error: "任务创建失败：" + e.message });
   }
-  bgRun(processJob(jobId, req.body.image));
+  const ctx = {
+    email: req.userEmail || null,
+    session_id: (req.headers["x-sid"] || "").slice(0, 64) || null,
+    ua: req.headers["user-agent"],
+  };
+  bgRun(processJob(jobId, req.body.image, ctx));
   res.json({ jobId });
 });
 
@@ -271,9 +311,14 @@ app.post("/api/segment/retry", requireLogin, async (req, res) => {
 
 /* 试穿：模特照片 + 衣服列表 → 返回上身效果 */
 app.post("/api/tryon", requireLogin, quota("TRYON", 20), async (req, res) => {
+  const itemCount = Array.isArray(req.body && req.body.items) ? req.body.items.length : 0;
   try {
-    res.json(await tryon(req.body));
+    const out = await tryon(req.body);
+    /* image 为空＝模型软失败（前端本地叠图兜底），也算一次失败计入漏斗 */
+    track(out && out.image ? "tryon_done" : "tryon_fail", req, { itemCount });
+    res.json(out);
   } catch (e) {
+    track("tryon_fail", req, { itemCount, error: (e.message || "").slice(0, 200) });
     res.status(500).json({ error: e.message });
   }
 });
@@ -282,6 +327,104 @@ app.post("/api/tryon", requireLogin, quota("TRYON", 20), async (req, res) => {
 app.post("/api/recommend", async (req, res) => {
   try {
     res.json(await recommend(req.body));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/* ---------- 埋点上报（前端 sendBeacon/keepalive 打点）----------
+   公开接口（匿名 page_view 也要收）。立即回 200 不拖慢用户，异步落库。
+   sendBeacon 发不了自定义头，email 从 body 带（best-effort，测试期够用）；
+   带了 Authorization 则以校验出的 email 为准。未配 Supabase 时静默丢弃。 */
+app.post("/api/track", (req, res) => {
+  res.json({ ok: true });
+  try {
+    if (!supa.enabled) return;
+    const b = req.body || {};
+    if (!b.event || typeof b.event !== "string") return;
+    const verified = verifyToken((req.headers.authorization || "").replace(/^Bearer\s+/i, ""));
+    let props = b.props && typeof b.props === "object" ? b.props : {};
+    if (JSON.stringify(props).length > 4000) props = {};   /* 防超大 props */
+    logEvent(b.event.slice(0, 64), {
+      email: verified || (typeof b.email === "string" ? b.email.slice(0, 120) : null),
+      session_id: typeof b.session_id === "string" ? b.session_id.slice(0, 64) : null,
+      page: typeof b.page === "string" ? b.page.slice(0, 64) : null,
+      ua: req.headers["user-agent"],
+    }, props);
+  } catch { /* 埋点永不影响业务 */ }
+});
+
+/* ---------- 简易数据看板（内部用）----------
+   GET /api/admin/stats?token=xxx&days=7 → 漏斗/DAU/事件汇总（Node 侧聚合）。
+   用环境变量 ADMIN_TOKEN 做口令（未配=禁用，别裸奔行为数据）。 */
+function computeStats(rows, days) {
+  const today = new Date().toISOString().slice(0, 10);
+  /* 匿名↔登录归因：登录后的事件天然同时带 email+session_id（前端从 Store 取邮箱），
+     先扫一遍建 会话→邮箱 映射，再把登录前的匿名事件归到同一个人头上。
+     查询时计算，天然追溯窗口内历史数据。同浏览器登多账号时取窗口内最近一次（rows 按 ts 降序）。 */
+  const sidToEmail = {};
+  for (const e of rows) {
+    if (e.email && e.session_id && sidToEmail[e.session_id] === undefined) {
+      sidToEmail[e.session_id] = e.email;
+    }
+  }
+  const id = e => e.email || sidToEmail[e.session_id] || e.session_id || "?";
+  const evtOf = {};                    // event → 次数
+  const pageOf = {};                   // page → page_view 次数
+  const dauSet = new Set(), wauSet = new Set();
+  const quotaByKind = { SPLIT: 0, TRYON: 0 };
+  let quotaTotal = 0;
+  const c = { loginView: 0, login: 0, onboard: 0, tryonView: 0, tryonSubmit: 0, tryonDone: 0, splitSubmit: 0, splitDone: 0 };
+  for (const e of rows) {
+    evtOf[e.event] = (evtOf[e.event] || 0) + 1;
+    const isToday = (e.ts || "").slice(0, 10) === today;
+    wauSet.add(id(e));
+    if (isToday) dauSet.add(id(e));
+    if (e.event === "page_view") {
+      const p = e.page || "?";
+      pageOf[p] = (pageOf[p] || 0) + 1;
+      if (p === "login.html") c.loginView++;
+      if (p === "tryon.html") c.tryonView++;
+    }
+    if (e.event === "login_success") c.login++;
+    if (e.event === "onboarding_done") c.onboard++;
+    if (e.event === "tryon_submit") c.tryonSubmit++;
+    if (e.event === "tryon_done") c.tryonDone++;
+    if (e.event === "split_submit") c.splitSubmit++;
+    if (e.event === "split_done") c.splitDone++;
+    if (e.event === "quota_block") {
+      quotaTotal++;
+      const k = e.props && e.props.kind;
+      if (k && quotaByKind[k] !== undefined) quotaByKind[k]++;
+    }
+  }
+  const topPages = Object.entries(pageOf).sort((a, b) => b[1] - a[1]).map(([page, n]) => ({ page, n }));
+  const events = Object.entries(evtOf).sort((a, b) => b[1] - a[1]).map(([event, n]) => ({ event, n }));
+  const recent = rows.slice(0, 25).map(e => ({
+    ts: e.ts, event: e.event, page: e.page,
+    who: id(e) === e.session_id ? "游客·" + e.session_id.slice(0, 6) : id(e),   /* 归因后身份 */
+  }));
+  return {
+    days, today, total: rows.length, dau: dauSet.size, wau: wauSet.size,
+    funnels: {
+      signup: [{ label: "登录页浏览", n: c.loginView }, { label: "登录成功", n: c.login }, { label: "完成引导", n: c.onboard }],
+      tryon: [{ label: "进试穿页", n: c.tryonView }, { label: "发起试穿", n: c.tryonSubmit }, { label: "生成成功", n: c.tryonDone }],
+      split: [{ label: "提交拆图", n: c.splitSubmit }, { label: "拆图完成", n: c.splitDone }],
+    },
+    quotaBlock: { total: quotaTotal, byKind: quotaByKind },
+    topPages, events, recent,
+  };
+}
+app.get("/api/admin/stats", async (req, res) => {
+  const need = process.env.ADMIN_TOKEN;
+  if (!need) return res.status(503).json({ error: "未配置 ADMIN_TOKEN，看板已禁用" });
+  if (req.query.token !== need) return res.status(401).json({ error: "无权访问" });
+  if (!supa.enabled) return res.json({ disabled: true });
+  try {
+    const days = Math.min(30, Math.max(1, +req.query.days || 7));
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    const rows = await supa.listEvents(since);
+    res.json(computeStats(rows, days));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

@@ -86,6 +86,7 @@
   function onPick(e) {
     const f = e.target.files[0];
     if (!f) return;
+    Track.send("item_upload", { source: e.target.id === "camInput" ? "camera" : "album" });
     const reader = new FileReader();
     reader.onload = () => bgAdd(reader.result);
     reader.readAsDataURL(f);

@@ -93,6 +93,7 @@
       const on = favs.includes(id);
       Store.set({ favorites: on ? favs.filter(f => f !== id) : [...favs, id] });
       b.classList.toggle("on", !on);
+      if (!on) Track.send("favorite_add", { outfit: id });
       toast(on ? "已取消收藏" : "已加入收藏");
     }));
     $$("[data-try]").forEach(b => b.addEventListener("click", e => {

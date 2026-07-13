@@ -201,6 +201,7 @@
      进度卡由 app.js 全局轮询的快照驱动，哪件先生成好哪件先入橱点亮，
      失败卡可单件重试。离线时走本地模拟即时入橱。 */
   async function startSplitJob(photo) {
+    Track.send("split_submit", { from: "wardrobe" });
     try {
       const r = await AI.segmentStart(photo);
       if (r.jobId) {

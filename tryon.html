@@ -455,6 +455,7 @@
           const it = itemById(id);
           if (it) items.push({ id: it.id, category: it.cat, image: await itemDataUrl(it) });
         }
+        Track.send("tryon_submit", { itemCount: items.length });
         const r = await AI.tryon(modelImage, items);
         img = r && r.image ? r.image : null;
         mock = !!(r && r.mock);      /* mock=无密钥/后端不在线的预期降级，不算失败 */
@@ -632,6 +633,7 @@
       uploading = true;
       try {
         const small = await compressImage(reader.result);
+        Track.send("split_submit", { from: "tryon" });
         const r = await AI.segmentStart(small);
         if (r.jobId) {
           Store.set({ pendingSegments: [...(Store.get().pendingSegments || []), { jobId: r.jobId, ts: Date.now(), landed: [] }] });
@@ -692,6 +694,7 @@
     if (btn.disabled) return;            /* 搭配请求进行中，连点不再重复调用付费模型 */
     btn.disabled = true;
     btn.innerHTML = '<span class="star">✦</span> AI 搭配中…';
+    Track.send("recommend_click", { around: !!around });
     try {
       const r = await AI.recommend(wardrobeItems(), around);
       if (r.items && r.items.length) {

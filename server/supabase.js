@@ -52,4 +52,41 @@ async function saveState(email, state) {
   });
 }
 
-module.exports = { enabled, getState, saveState };
+/* ---------- 埋点事件（analytics）----------
+   表 events：见 server/tools/analytics.sql（在 Supabase SQL Editor 跑一次建表+开 RLS）。
+   写入用 service key，前端只经我们自己的 /api/track，绝不直连库。 */
+
+/* 写一条事件（即发即走，调用方吞异常，埋点失败绝不影响主流程） */
+async function insertEvent(ev) {
+  await sb("events", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      event: ev.event,
+      email: ev.email || null,
+      session_id: ev.session_id || null,
+      page: ev.page || null,
+      props: ev.props || {},
+      ua: ev.ua ? String(ev.ua).slice(0, 300) : null,
+    }),
+  });
+}
+
+/* 读某时间点后的事件（看板聚合用，Node 侧统计）。
+   PostgREST 默认单页上限 1000，用 Range 头翻页，安全上限 cap 条防拉爆内存。 */
+async function listEvents(sinceISO, cap = 50000) {
+  const PAGE = 1000;
+  const cols = "event,email,session_id,ts,page,props";
+  const q = `events?ts=gte.${encodeURIComponent(sinceISO)}&select=${cols}&order=ts.desc`;
+  const out = [];
+  for (let from = 0; from < cap; from += PAGE) {
+    const to = Math.min(from + PAGE - 1, cap - 1);
+    const resp = await sb(q, { headers: { Range: `${from}-${to}`, "Range-Unit": "items" } });
+    const rows = await resp.json();
+    out.push(...rows);
+    if (rows.length < PAGE) break;   // 最后一页
+  }
+  return out;
+}
+
+module.exports = { enabled, getState, saveState, insertEvent, listEvents };

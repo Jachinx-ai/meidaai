@@ -66,7 +66,8 @@
     try {
       r = await fetch(path, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        /* X-Sid：把匿名会话号带给后端，login_success 埋点能绑定 会话↔邮箱（看板归因用） */
+        headers: { "Content-Type": "application/json", "X-Sid": Track.sid() },
         body: JSON.stringify(body),
       });
     } catch {

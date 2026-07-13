@@ -99,6 +99,45 @@ const Store = {
   },
 };
 
+/* ---------- 埋点（前端采集）----------
+   一行 Track.send(事件, 参数) 即上报。sendBeacon 优先（页面跳转/关闭也发得出去），
+   失败兜底 fetch keepalive。session_id 存 localStorage 跨页面复用。
+   隐私授权关掉（privacyOk===false）则完全不采集。埋点永不影响页面逻辑。
+   视图类漏斗（进试穿页/引导页等）由 page_view 的 page 字段在看板侧推导，不重复埋。 */
+const Track = {
+  sid() {
+    let s = null;
+    try { s = localStorage.getItem("aiwd-sid"); } catch {}
+    if (!s) {
+      s = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      try { localStorage.setItem("aiwd-sid", s); } catch {}
+    }
+    return s;
+  },
+  send(event, props = {}) {
+    try {
+      /* iframe 内不采集：index.html 总览页用 iframe 嵌了所有页面（桌面演示用），
+         不是真实访问，否则会给每页凭空造出一次 PV、污染漏斗 */
+      if (window.top !== window.self) return;
+      const s = Store.get();
+      if (s.privacyOk === false) return;              /* 用户关了隐私授权：不采集 */
+      const body = JSON.stringify({
+        event,
+        props: props || {},
+        session_id: this.sid(),
+        page: location.pathname.split("/").pop() || "index.html",
+        email: (s.account && s.account.email) || null,
+      });
+      if (navigator.sendBeacon &&
+          navigator.sendBeacon("/api/track", new Blob([body], { type: "application/json" }))) return;
+      fetch("/api/track", { method: "POST", body, keepalive: true,
+        headers: { "Content-Type": "application/json" } }).catch(() => {});
+    } catch { /* 埋点永不影响页面 */ }
+  },
+};
+/* 全站自动 PV：每个页面真实加载记一次（bfcache 恢复不触发 load，不会重复） */
+window.addEventListener("load", () => Track.send("page_view"));
+
 /* ---------- 单品工具 ---------- */
 function allItems() {
   return [...ITEMS, ...Store.get().customItems];
@@ -467,6 +506,7 @@ async function pollSegmentJobs() {
       });
       if (addItems.length) {
         toast(addItems.length > 1 ? `${addItems.length} 件已入橱` : `「${addItems[0].name}」已入橱`);
+        Track.send("item_confirm", { count: addItems.length });   /* 拆图成品入衣橱 */
       }
     }
     /* 每轮都通知页面：进度卡需要感知 排队中→生成中 等状态推进 */

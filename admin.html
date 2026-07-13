@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>美搭 · 数据看板</title>
+<style>
+  :root{
+    --bg:#f4f3ef; --card:#fff; --ink:#1c1c1a; --ink2:#6b6a64; --line:#e6e4dc;
+    --blue:#185fa5; --blue-bg:#e6f1fb; --teal:#0f6e56; --teal-bg:#e1f5ee;
+    --amber:#854f0b; --amber-bg:#faeeda;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,sans-serif;
+    -webkit-font-smoothing:antialiased;padding:24px 16px 60px;}
+  .wrap{max-width:920px;margin:0 auto;}
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px;}
+  h1{font-size:20px;font-weight:700;margin:0;}
+  .muted{color:var(--ink2);font-size:13px;}
+  .rangebar{display:flex;gap:6px;margin:14px 0 22px;}
+  .rangebar button{border:1px solid var(--line);background:var(--card);color:var(--ink2);
+    border-radius:999px;padding:6px 14px;font-size:13px;cursor:pointer;}
+  .rangebar button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;}
+  .card .k{font-size:12px;color:var(--ink2);}
+  .card .v{font-size:28px;font-weight:700;margin-top:4px;line-height:1;}
+  .card .v small{font-size:13px;font-weight:500;color:var(--ink2);}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:16px;}
+  section h2{font-size:15px;font-weight:600;margin:0 0 14px;}
+  .funnels{display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px;}
+  @media(max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}.funnels{grid-template-columns:1fr}}
+  .fn h3{font-size:13px;font-weight:600;margin:0 0 10px;color:var(--ink2);}
+  .step{margin-bottom:9px;}
+  .step .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;}
+  .step .row b{font-weight:600;}
+  .bar{height:8px;background:var(--blue-bg);border-radius:999px;overflow:hidden;}
+  .bar i{display:block;height:100%;background:var(--blue);border-radius:999px;}
+  .fn.teal .bar{background:var(--teal-bg)} .fn.teal .bar i{background:var(--teal)}
+  .conv{font-size:11px;color:var(--ink2);}
+  .quota{display:flex;align-items:center;gap:16px;}
+  .quota .big{font-size:34px;font-weight:700;color:var(--amber);}
+  .quota .tag{background:var(--amber-bg);color:var(--amber);border-radius:8px;padding:3px 9px;font-size:12px;margin-right:6px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);}
+  th{color:var(--ink2);font-weight:600;font-size:12px;}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .feed td{font-variant-numeric:tabular-nums;color:var(--ink2);}
+  .feed .ev{color:var(--ink);font-weight:500;}
+  .note{background:#fff8e6;border:1px solid #f0d98a;color:#7a5a06;border-radius:12px;
+    padding:14px 16px;font-size:13px;line-height:1.6;}
+  code{background:#eceae2;padding:1px 6px;border-radius:5px;font-size:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>美搭 · 数据看板</h1><div class="muted" id="sub">加载中…</div></div>
+    <div class="rangebar" id="range">
+      <button data-d="1">今天</button>
+      <button data-d="7" class="on">近 7 天</button>
+      <button data-d="30">近 30 天</button>
+    </div>
+  </header>
+  <div id="body"></div>
+</div>
+
+<script>
+/* 看板 token：从 ?token= 取，记住到 localStorage，缺了就问一次 */
+function getToken() {
+  const u = new URLSearchParams(location.search).get("token");
+  if (u) { try { localStorage.setItem("meida-admin-token", u); } catch {} return u; }
+  let t = "";
+  try { t = localStorage.getItem("meida-admin-token") || ""; } catch {}
+  if (!t) { t = prompt("请输入看板口令（ADMIN_TOKEN）") || ""; try { localStorage.setItem("meida-admin-token", t); } catch {} }
+  return t;
+}
+const TOKEN = getToken();
+let days = 7;
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+
+function funnelHTML(title, steps, cls) {
+  const top = steps[0] ? steps[0].n : 0;
+  return `<div class="fn ${cls}"><h3>${title}</h3>` + steps.map((s, i) => `
+    <div class="step">
+      <div class="row"><span>${esc(s.label)}</span><b>${s.n}</b></div>
+      <div class="bar"><i style="width:${top ? Math.max(2, s.n / top * 100) : 0}%"></i></div>
+      ${i ? `<div class="conv">较上一步 ${pct(s.n, steps[i - 1].n)}%　总转化 ${pct(s.n, top)}%</div>` : ""}
+    </div>`).join("") + `</div>`;
+}
+
+function render(d) {
+  $("#sub").textContent = `范围 ${d.days} 天 · 今天 ${d.today} · 共 ${d.total} 条事件`;
+  const f = d.funnels;
+  const q = d.quotaBlock;
+  $("#body").innerHTML = `
+    <div class="cards">
+      <div class="card"><div class="k">今日活跃 DAU</div><div class="v">${d.dau}</div></div>
+      <div class="card"><div class="k">${d.days} 天活跃</div><div class="v">${d.wau}</div></div>
+      <div class="card"><div class="k">配额拦截</div><div class="v">${q.total}</div></div>
+      <div class="card"><div class="k">事件总数</div><div class="v">${d.total}</div></div>
+    </div>
+    <section>
+      <h2>核心漏斗</h2>
+      <div class="funnels">
+        ${funnelHTML("注册激活", f.signup, "")}
+        ${funnelHTML("试穿（核心）", f.tryon, "teal")}
+        ${funnelHTML("拆图建衣橱", f.split, "")}
+      </div>
+    </section>
+    <section>
+      <h2>配额拦截（付费意愿信号）</h2>
+      <div class="quota">
+        <div class="big">${q.total}</div>
+        <div><span class="tag">拆图 ${q.byKind.SPLIT || 0}</span><span class="tag">试穿 ${q.byKind.TRYON || 0}</span>
+        <div class="muted" style="margin-top:6px">用户撞到每日额度上限被拦的次数 —— 越高说明付费意愿越强</div></div>
+      </div>
+    </section>
+    <div class="grid2">
+      <section>
+        <h2>页面浏览 Top</h2>
+        <table><tr><th>页面</th><th class="n">PV</th></tr>
+        ${d.topPages.slice(0, 10).map(p => `<tr><td>${esc(p.page)}</td><td class="n">${p.n}</td></tr>`).join("") || '<tr><td class="muted">暂无</td><td></td></tr>'}
+        </table>
+      </section>
+      <section>
+        <h2>各事件次数</h2>
+        <table><tr><th>事件</th><th class="n">次数</th></tr>
+        ${d.events.map(e => `<tr><td>${esc(e.event)}</td><td class="n">${e.n}</td></tr>`).join("") || '<tr><td class="muted">暂无</td><td></td></tr>'}
+        </table>
+      </section>
+    </div>
+    <section class="feed">
+      <h2>最近事件</h2>
+      <table><tr><th>时间</th><th>事件</th><th>页面</th><th>用户</th></tr>
+      ${d.recent.map(e => `<tr>
+        <td>${esc((e.ts || "").slice(5, 16).replace("T", " "))}</td>
+        <td class="ev">${esc(e.event)}</td>
+        <td>${esc(e.page || "")}</td>
+        <td>${esc(e.who || "")}</td></tr>`).join("") || '<tr><td class="muted">暂无</td></tr>'}
+      </table>
+    </section>`;
+}
+
+function showNote(html) { $("#body").innerHTML = `<div class="note">${html}</div>`; }
+
+async function load() {
+  document.querySelectorAll("#range button").forEach(b => b.classList.toggle("on", +b.dataset.d === days));
+  try {
+    const resp = await fetch(`/api/admin/stats?token=${encodeURIComponent(TOKEN)}&days=${days}`);
+    if (resp.status === 401) { try { localStorage.removeItem("meida-admin-token"); } catch {}
+      return showNote("口令错误。刷新页面用 <code>?token=你的ADMIN_TOKEN</code> 重新进入。"); }
+    if (resp.status === 503) return showNote("后端未配置 <code>ADMIN_TOKEN</code>，看板已禁用。在服务端环境变量里设一个随机口令再访问。");
+    const d = await resp.json();
+    if (d.disabled) return showNote("后端未接入 Supabase（<code>SUPABASE_URL / SUPABASE_SERVICE_KEY</code> 未配），暂无数据可看。先建表并配好环境变量。");
+    if (d.error) return showNote("加载失败：" + esc(d.error));
+    render(d);
+  } catch (e) { showNote("网络错误：" + esc(e.message)); }
+}
+
+document.querySelectorAll("#range button").forEach(b =>
+  b.addEventListener("click", () => { days = +b.dataset.d; load(); }));
+load();
+</script>
+</body>
+</html>
